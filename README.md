@@ -1,4 +1,4 @@
-# Voice helper friend
+# Voice helper friend Linux
 <details>
 <summary>English</summary>
 
