@@ -6,12 +6,20 @@ import time
 # https://people.csail.mit.edu/hubert/pyaudio/docs/
 # https://people.csail.mit.edu/hubert/pyaudio/
 import pyaudio
+# Linux +
+# Были сообщения от ALSA типа "ALSA lib pcm_dmix.c:999:(snd_pcm_dmix_open) unable to open slave"
+# и "jack server is not running or cannot be started"
+# Помогло решение отсюда https://stackoverflow.com/questions/65079325/problem-with-alsa-in-speech-recognitionpython-3
+# Хотя явно sounddevice нигде не используется, но import sounddevice помогает
+import sounddevice
+# Linux -
 # Для распознавания речи используем vosk - автономный API распознавания речи
 from vosk import KaldiRecognizer
 # Для преобразования текста в речь (для ответов друга) используем pyttsx3
-import pyttsx3
+# import pyttsx3
 # Для воспроизведения аудио файлов будем использовать vlc
 import vlc
+import speechd
 
 import voicehelper_friend_config as word
 
@@ -21,7 +29,14 @@ RATE = 16000  # частота дискретизации - кол-во фрей
 CHUNK = 8000  # кол-во фреймов за один "запрос" к микрофону - тк читаем по кусочкам
 FORMAT = pyaudio.paInt16  # глубина звука = 16 бит = 2 байта
 
-engine = pyttsx3.init()
+# Для Windows использовала pyttsx3
+# Для Linux  rhvoice с speechd
+# engine = pyttsx3.init()
+client = speechd.SSIPClient('friends_voice')
+client.set_output_module('rhvoice')
+client.set_language('ru')
+client.set_rate(15)
+client.set_punctuation(speechd.PunctuationMode.SOME)
 
 
 # Чтобы использовать PyAudio, сначала создаем экземпляр PyAudio, который получит
@@ -57,7 +72,10 @@ def load_playlist(playlist_name: str):
         if line[0] == '#':
             continue
         elif line[0:5] == 'file:':
-            media_path = os.path.abspath(line[8:].rstrip())
+            # to do пока сделала так. Посмотреть правильную проверку в Linux
+            # media_path = os.path.abspath(line[8:].rstrip())
+            media_path = '/' + line[8:].rstrip()
+
             if os.path.isfile(media_path):
                 playlist_list.append(media_path)
         elif line[0:6] == 'https:':
@@ -69,18 +87,26 @@ def load_playlist(playlist_name: str):
 
     # end_of_list.mp3 нужен, чтобы сообщить пользователю о конце плейлиста и чтобы
     # не попасть в бесконечный цикл, когда "не медиа файл" последний в плейлисте (см. main() media_list_player.next())
-    if len(playlist_list) > 0:
-        if not os.path.isfile(word.END_OF_LIST):
-            engine.save_to_file(word.USER_NAME + word.PLAYLIST_END, word.END_OF_LIST)
-            engine.runAndWait()
+    # to do
+    # Надо понять как можно записать озвученный текст в файл с использованием
+    # speechd и rhvoice
+    # Пока проверку и генерацию файла не делаю, предполагаю что он есть
+    # Сами файлы скопировала из Windows
+    # if len(playlist_list) > 0:
+    #     if not os.path.isfile(word.END_OF_LIST):
+    #         engine.save_to_file(word.USER_NAME + word.PLAYLIST_END, word.END_OF_LIST)
+    #         engine.runAndWait()
+    #
+    #     playlist_list.append( word.END_OF_LIST)
+    #
+    #     if not os.path.isfile(word.START_OF_LIST):
+    #         engine.save_to_file(word.USER_NAME + word.PLAYLIST_START, word.START_OF_LIST)
+    #         engine.runAndWait()
+    #
+    #     playlist_list.insert(0,word.START_OF_LIST)
 
-        playlist_list.append( word.END_OF_LIST)
-
-        if not os.path.isfile(word.START_OF_LIST):
-            engine.save_to_file(word.USER_NAME + word.PLAYLIST_START, word.START_OF_LIST)
-            engine.runAndWait()
-
-        playlist_list.insert(0,word.START_OF_LIST)
+    playlist_list.append(word.END_OF_LIST)
+    playlist_list.insert(0, word.START_OF_LIST)
 
     return playlist_list
 
@@ -96,7 +122,12 @@ def play_vlc():
 
         # Плейлист из файла загружаем в список (список, а не кортеж, т.к. планируется добавление в плейлист?)
         # Пока загружается только плейлист из файла с названием my_playlist.m3u
-        playlist_list = load_playlist('my_playlist.m3u')
+        # playlist_list = load_playlist('my_playlist.m3u')
+        # Linux
+        # Плейлисты будут хранится в /home/seafox/VoiceFriend_PlayLists/
+        # name_playlist = 'my_playlist.m3u'
+        playlist_list = load_playlist('/home/seafox/VoiceFriend_PlayLists/Книги о любви.m3u')
+
 
         len_playlist = len(playlist_list)
 
@@ -114,11 +145,19 @@ def play_vlc():
 
         media_list_player.play()
 
+#  Вариант с pyttsx3 (engine) использовала в Windows
+# def say_text(text):
+#     engine.say(text)
+#     engine.runAndWait()
 
 def say_text(text):
-    engine.say(text)
-    engine.runAndWait()
+    text_len = len(text)
+    time_len = text_len / 10 - 5
 
+    client.speak(text)
+
+    if time_len > 0:
+        time.sleep(time_len)
 
 def result_by_words(result_text):
     result_text = result_text.replace("\n", "")
@@ -424,6 +463,9 @@ def execute_command(commands_to_execute, set_commands, result_text):
     elif not commands_to_execute.isdisjoint(word.SET_PLAY):
         say_text(word.USER_NAME + word.PLAYER_START)
         print('execute_command(): ', word.PLAYER_START)
+        # Linux +
+        time.sleep(3)
+        # Linux-
         play_vlc()
     elif not commands_to_execute.isdisjoint(word.SET_NEXT):
         say_text(word.USER_NAME + word.PLAYER_NEXT)
