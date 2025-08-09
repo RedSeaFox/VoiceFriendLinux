@@ -17,9 +17,12 @@ import sounddevice
 from vosk import KaldiRecognizer
 # Для преобразования текста в речь (для ответов друга) используем pyttsx3
 # import pyttsx3
+# Linux +
+# В Linux используем speechd
+import speechd
+# Linux -
 # Для воспроизведения аудио файлов будем использовать vlc
 import vlc
-import speechd
 
 import voicehelper_friend_config as word
 
@@ -88,7 +91,7 @@ def load_playlist(playlist_name: str):
     # end_of_list.mp3 нужен, чтобы сообщить пользователю о конце плейлиста и чтобы
     # не попасть в бесконечный цикл, когда "не медиа файл" последний в плейлисте (см. main() media_list_player.next())
     # to do
-    # Надо понять как можно записать озвученный текст в файл с использованием
+    # Надо понять как в Linux можно записать озвученный текст в файл с использованием
     # speechd и rhvoice
     # Пока проверку и генерацию файла не делаю, предполагаю что он есть
     # Сами файлы скопировала из Windows
@@ -149,15 +152,18 @@ def play_vlc():
 # def say_text(text):
 #     engine.say(text)
 #     engine.runAndWait()
-
+# Linux +
 def say_text(text):
     text_len = len(text)
-    time_len = text_len / 10 - 5
+    # time_len = text_len / 10 - 5
+    time_len = text_len / 10 - 7
 
     client.speak(text)
+    time.sleep(2)
 
     if time_len > 0:
         time.sleep(time_len)
+# Linux -
 
 def result_by_words(result_text):
     result_text = result_text.replace("\n", "")
@@ -464,7 +470,7 @@ def execute_command(commands_to_execute, set_commands, result_text):
         say_text(word.USER_NAME + word.PLAYER_START)
         print('execute_command(): ', word.PLAYER_START)
         # Linux +
-        time.sleep(3)
+        # time.sleep(3)
         # Linux-
         play_vlc()
     elif not commands_to_execute.isdisjoint(word.SET_NEXT):
