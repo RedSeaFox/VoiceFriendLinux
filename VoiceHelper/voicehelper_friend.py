@@ -350,32 +350,48 @@ def go_to(set_commands, result_text):
 
 
 def set_playlist(set_commands, result_text):
-    # Получаем все плейлисты из каталога
-    list_of_file = os.listdir(word.DIR_PLAYLIST)
+    # Получаем каталог с плейлистами
+    dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
+    if os.path.isdir(dir_playlst):
+        # Если каталог есть, то получаем в список все названия файлов из этого каталога
+        list_of_file = os.listdir(dir_playlst)
+        print('Каталог с плейлистами есть.Список плейлистов')
+        print(list_of_file)
+    else:
+        print('Нет каталога с плейлистами. Сообщаем пользователю.')
+        say_text(word.DIR_PLAYLIST_NO)
+        return
+
+    # list_of_file = os.listdir(word.DIR_PLAYLIST)
+
     # Создаем множество, в которое поместим все плейлисты
     # Множество, чтобы можно было получить пересечение с заказанным плейлистом
-    list_of_playlist = set()
-
+    set_of_playlist = set()
     for file in list_of_file:
         if file.endswith('.m3u'):
-            list_of_playlist.append(file)
+            set_of_playlist.append(file)
 
-    list_for_play = list_of_playlist & set_commands
+    # Ищем есть ли названный плелист в списке плейлистов
+    playlist_for_play = set_of_playlist & set_commands
 
-    if len(list_for_play) == 0:
+    if len(playlist_for_play) == 0:
+        # Если названный плейлист не найден в списке плейлистов, то перечисляем все плейлисты, которые есть
+        say_text(word.USER_NAME + word.ALL_PLAYLIST)
+        time.sleep(1)
+        say_text(str(list_of_file))
+        #
+        # просим назвать плейлист для запуска
+        # say_text(word.USER_NAME + word.SAY_NAME_PLAYLIST)
+        # Обработать запуск плейлиста
+    else:
+        # Если плейлист есть в списке, то назначаем его текущим плейлистом
+        current_playlist = list(list_for_play)[0]
+
         # to do Если во множестве оказалось несколько плейлистов, то об этом надо сообщить.
         # Пока берем один элемент множества
 
-        say_text(word.USER_NAME + word.SAY_NAME_PLAYLIST)
-        # Обработать запуск плейлиста
-    else:
-        current_playlist = list(list_for_play)[0]
 
 
-# Сначала убираем дубли из названия плейлиста
-
-
-# Ищем в плейлистах название сказанного
 
 # Быстрая перемотка вперед. Прыжок через несколько треков (например два трека)
 # или через несколько секунд/минут/часов (например 20 секунд)
@@ -590,7 +606,8 @@ def main():
     # Положение в самом плейлисте хранится в файле состояния плейлиста
     # Можно хранить данные о всех плейлистах в одном файле, но тогда можно все потерять вместе с этим файлом.
     # Пока останавливаюсь на варианте: каждому плейлисту свой файл состояния
-    # Состояние хранится в файле CurrentStatus в каталоге программы
+
+    # Текущий плейлист хранится в файле CurrentStatus в каталоге программы
     name_file_status = word.FILE_STATUS
 
     if os.path.isfile(name_file_status):

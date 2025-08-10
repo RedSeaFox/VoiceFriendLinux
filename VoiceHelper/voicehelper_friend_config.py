@@ -171,8 +171,10 @@ elif LANGUAGE == 'ru':
 
     # Каталог с плейлистами
     DIR_PLAYLIST = 'VoiceFriend_PlayLists'
+    DIR_PLAYLIST_NO = 'Не найден каталог с плейлистами.'
 
-    SAY_NAME_PLAYLIST = ', скажи название плейлиста'
+    ALL_PLAYLIST = 'Плейлисты которые ты можешь запустить. Выбери один из них.'
+    # SAY_NAME_PLAYLIST = ', скажи название плейлиста'
     RUN_PLAYLIST = ', запускаю плейлист'
 
     FILE_STATUS = 'CurrentStatus'
@@ -182,13 +184,12 @@ elif LANGUAGE == 'ru':
     # Слово - маячок. По нему программа определяет, что обратились к ней.
     FRIEND = 'друг'
 
+    PlAYLIST = ', включаю плейлист '
+
     # Для выбора плейлиста используем слово список.
     SET_PlAYLISTS = {'списки', 'плейлисты'}
 
     SET_PlAYLIST = {'список', 'плейлист'}
-
-    PlAYLIST = ', включаю плейлист '
-
 
     # Запустить плеер
     SET_PLAY = {'играй', 'играть', 'пой', 'петь'}
@@ -220,7 +221,8 @@ elif LANGUAGE == 'ru':
     SET_BYE = {'пока', 'до свидания', 'прощай'}
     SET_SEARCH = {'найди', 'ищи', 'поиск', 'найти'}
 
-    SET_ALL_COMMANDS = SET_PLAY | SET_SEARCH | SET_NEXT | SET_PREVIOUS | SET_FORWARD | SET_BACK | SET_BYE | SET_GOTO
+    SET_ALL_COMMANDS = SET_PLAY | SET_SEARCH | SET_NEXT | SET_PREVIOUS | SET_FORWARD | SET_BACK | SET_BYE | SET_GOTO \
+                       | SET_PlAYLIST | SET_PlAYLISTS
     SET_MEASURE_TIME = SET_MEASURE_SECOND | SET_MEASURE_MINUTE | SET_MEASURE_HOUR
 
     SAY_COMMAND = ', скажи твою команду.'
