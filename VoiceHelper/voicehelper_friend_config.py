@@ -169,8 +169,26 @@ if LANGUAGE == 'en':
 elif LANGUAGE == 'ru':
     MODEL_VOSK = Model("vosk_model_small_ru")
 
+    # Каталог с плейлистами
+    DIR_PLAYLIST = 'VoiceFriend_PlayLists'
+
+    SAY_NAME_PLAYLIST = ', скажи название плейлиста'
+    RUN_PLAYLIST = ', запускаю плейлист'
+
+    FILE_STATUS = 'CurrentStatus'
+
+    PlAYLIST_BY_DEFAULT = 'Что я умею.m3u'
+
     # Слово - маячок. По нему программа определяет, что обратились к ней.
     FRIEND = 'друг'
+
+    # Для выбора плейлиста используем слово список.
+    SET_PlAYLISTS = {'списки', 'плейлисты'}
+
+    SET_PlAYLIST = {'список', 'плейлист'}
+
+    PlAYLIST = ', включаю плейлист '
+
 
     # Запустить плеер
     SET_PLAY = {'играй', 'играть', 'пой', 'петь'}

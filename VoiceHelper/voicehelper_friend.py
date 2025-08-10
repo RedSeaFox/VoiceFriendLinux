@@ -1,4 +1,5 @@
 import os.path
+import pathlib
 import time
 # Нужен микрофон. Для этого можно использовать pyaudio.
 # Можно использовать SpeechRecognition, который все равно использует pyaudio.
@@ -52,6 +53,9 @@ rec = KaldiRecognizer(word.MODEL_VOSK, 16000)
 # Большинство команд к другу касаются плеера, поэтому он должен быть всегда доступен
 vlc_instance = vlc.Instance()
 media_list_player = vlc_instance.media_list_player_new()
+
+# Плейлистов несколько.
+current_playlist = word.PlAYLIST_BY_DEFAULT
 
 len_playlist = 0
 
@@ -345,6 +349,34 @@ def go_to(set_commands, result_text):
         say_text(word.USER_NAME + word.MEASURE_UNDEFINED)
 
 
+def set_playlist(set_commands, result_text):
+    # Получаем все плейлисты из каталога
+    list_of_file = os.listdir(word.DIR_PLAYLIST)
+    # Создаем множество, в которое поместим все плейлисты
+    # Множество, чтобы можно было получить пересечение с заказанным плейлистом
+    list_of_playlist = set()
+
+    for file in list_of_file:
+        if file.endswith('.m3u'):
+            list_of_playlist.append(file)
+
+    list_for_play = list_of_playlist & set_commands
+
+    if len(list_for_play) == 0:
+        # to do Если во множестве оказалось несколько плейлистов, то об этом надо сообщить.
+        # Пока берем один элемент множества
+
+        say_text(word.USER_NAME + word.SAY_NAME_PLAYLIST)
+        # Обработать запуск плейлиста
+    else:
+        current_playlist = list(list_for_play)[0]
+
+
+# Сначала убираем дубли из названия плейлиста
+
+
+# Ищем в плейлистах название сказанного
+
 # Быстрая перемотка вперед. Прыжок через несколько треков (например два трека)
 # или через несколько секунд/минут/часов (например 20 секунд)
 # Пока распознается только время или в секундах, или в минутах, или в часах.
@@ -495,6 +527,10 @@ def execute_command(commands_to_execute, set_commands, result_text):
         say_text(word.USER_NAME + word.PLAYER_BACK)
         print('execute_command(): ', word.PLAYER_BACK)
         go_back(set_commands, result_text)
+    elif not commands_to_execute.isdisjoint(word.SET_PlAYLIST):
+        set_commands -= word.SET_PlAYLIST
+        print('execute_command(): PlAYLIST /', word.PlAYLIST)
+        set_playlist(set_commands, result_text)
     elif not commands_to_execute.isdisjoint(word.SET_SEARCH):
         commands_to_execute -= word.SET_SEARCH
         print('execute_command(): ', word.PLAYER_SEARCH)
@@ -537,6 +573,10 @@ def process_text_main(set_commands, result_text):
 
 
 def bye():
+    f = open(word.FILE_STATUS, 'w')
+    f.write(current_playlist)
+    f.close()
+
     stream.stop_stream()
     stream.close()
     py_audio.terminate()
@@ -544,6 +584,31 @@ def bye():
 
 def main():
     record_seconds = 2
+
+    # to do
+    # При запуске программы надо считать состояние:какой плейлист был текущим на момент закрытия.
+    # Положение в самом плейлисте хранится в файле состояния плейлиста
+    # Можно хранить данные о всех плейлистах в одном файле, но тогда можно все потерять вместе с этим файлом.
+    # Пока останавливаюсь на варианте: каждому плейлисту свой файл состояния
+    # Состояние хранится в файле CurrentStatus в каталоге программы
+    name_file_status = word.FILE_STATUS
+
+    if os.path.isfile(name_file_status):
+        f = open(name_file_status)
+        current_playlist = f.read()
+    else:
+        f = open(name_file_status, 'w')
+        current_playlist = word.PlAYLIST_BY_DEFAULT
+        f.write(current_playlist)
+
+    f.close()
+
+    # Проверяем существует ли плейлист. Если плейлиста нет, то выбираем плейлист по умолчанию
+    # Плейлист по умолчанию (PlAYLIST_BY_DEFAULT) тоже надо провярять на существование to do
+    if not os.path.isfile(current_playlist):
+        f = open(name_file_status, 'w')
+        current_playlist = word.PlAYLIST_BY_DEFAULT
+        f.write(current_playlist)
 
     say_text(word.PROGRAM_IS_RUNNING)
 
