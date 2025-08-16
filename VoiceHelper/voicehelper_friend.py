@@ -54,8 +54,43 @@ vlc_instance = vlc.Instance()
 media_list_player = vlc_instance.media_list_player_new()
 new_playlist = True
 
+def load_current_playlist():
+    # При запуске программы считываем состояние:какой плейлист был текущим на момент закрытия.
+    # Положение в самом плейлисте хранится в файле состояния плейлиста
+    # Можно хранить данные о всех плейлистах в одном файле, но тогда можно все потерять вместе с этим файлом.
+    # Пока останавливаюсь на варианте: каждому плейлисту свой файл состояния
+
+    # Текущий плейлист хранится в файле CurrentStatus в каталоге программы
+    name_file_status = word.FILE_STATUS
+
+    if os.path.isfile(name_file_status):
+        f = open(name_file_status)
+        current_playlist = f.read()
+        # dir_playlist = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST + '/'
+    else:
+        # Если файла состояния CurrentStatus нет, то создаем его, т.к. он нужен для хранения текущего плейлиста
+        # В этот файл CurrentStatus записываем плейлист с информацией о программе, который хранится в каталоге с программой
+        f = open(name_file_status, 'w')
+        current_playlist = word.PlAYLIST_BY_DEFAULT
+        f.write(current_playlist)
+        # dir_playlist = ''
+
+    f.close()
+
+    # Проверяем существует ли плейлист.
+    # Если плейлиста нет, то выбираем плейлист по умолчанию с информацией о программе,
+    # который хранится в каталоге с программой и сохраняем его в CurrentStatus
+    if not os.path.isfile(current_playlist):
+        f = open(name_file_status, 'w')
+        current_playlist = word.PlAYLIST_BY_DEFAULT
+        f.write(current_playlist)
+    # Плейлист по умолчанию (PlAYLIST_BY_DEFAULT) тоже надо проверять на существование to do
+
+    return current_playlist
+
 # Плейлистов несколько.
-current_playlist = word.PlAYLIST_BY_DEFAULT
+# current_playlist = word.PlAYLIST_BY_DEFAULT
+current_playlist = load_current_playlist()
 
 len_playlist = 0
 
@@ -116,7 +151,8 @@ def play_vlc():
     print('play_vlc() current_playlist = ' + current_playlist)
 
     # Если плеер уже запущен, но находится в состоянии пауза, то запускаем его (продолжаем играть)
-    if media_list_player.get_state() == vlc.State(4) and not new_playlist:
+    # if media_list_player.get_state() == vlc.State(4) and not new_playlist:
+    if media_list_player.get_state() == vlc.State(4) :
         media_list_player.pause()
     else:
         # Если плеер еще не запущен - запускаем.
@@ -341,6 +377,8 @@ def go_to(set_commands, result_text):
 
 def set_playlist(set_commands, result_text):
     global current_playlist, new_playlist
+
+    # to do Здесь надо сохранять позицию закрываемого плейлиста
     # Получаем название каталога с плейлистами из домашней папки
     dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
 
@@ -380,6 +418,12 @@ def set_playlist(set_commands, result_text):
     else:
         # Если плейлист есть в списке, то назначаем его текущим плейлистом
         current_playlist = dir_playlst + '/' + list(playlist_for_play)[0] + '.m3u'
+
+        # Сохраняем в файл CurrentStatus новый плейлист, на случай аварийного закрытия программы
+        f = open(word.FILE_STATUS, 'w')
+        f.write(current_playlist)
+        f.close()
+
         # Здесь надо остановить плеер, так как установлен новый плейлист
         # media_list_player.set_media_list
         # media_list_player = vlc_instance.media_list_player_new()
@@ -600,33 +644,8 @@ def bye():
 
 
 def main():
+    global current_playlis
     record_seconds = 2
-
-    # to do
-    # При запуске программы надо считать состояние:какой плейлист был текущим на момент закрытия.
-    # Положение в самом плейлисте хранится в файле состояния плейлиста
-    # Можно хранить данные о всех плейлистах в одном файле, но тогда можно все потерять вместе с этим файлом.
-    # Пока останавливаюсь на варианте: каждому плейлисту свой файл состояния
-
-    # Текущий плейлист хранится в файле CurrentStatus в каталоге программы
-    name_file_status = word.FILE_STATUS
-
-    if os.path.isfile(name_file_status):
-        f = open(name_file_status)
-        current_playlist = f.read()
-    else:
-        f = open(name_file_status, 'w')
-        current_playlist = word.PlAYLIST_BY_DEFAULT
-        f.write(current_playlist)
-
-    f.close()
-
-    # Проверяем существует ли плейлист. Если плейлиста нет, то выбираем плейлист по умолчанию
-    # Плейлист по умолчанию (PlAYLIST_BY_DEFAULT) тоже надо провярять на существование to do
-    if not os.path.isfile(current_playlist):
-        f = open(name_file_status, 'w')
-        current_playlist = word.PlAYLIST_BY_DEFAULT
-        f.write(current_playlist)
 
     say_text(word.PROGRAM_IS_RUNNING)
 
