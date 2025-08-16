@@ -173,13 +173,14 @@ elif LANGUAGE == 'ru':
     DIR_PLAYLIST = 'VoiceFriend_PlayLists'
     DIR_PLAYLIST_NO = 'Не найден каталог с плейлистами.'
 
-    ALL_PLAYLIST = 'Плейлисты которые ты можешь запустить. Выбери один из них.'
+    ALL_PLAYLIST_1 = (', я не услышал название плейлиста. Плейлисты которые ты можешь запустить.')
+    ALL_PLAYLIST_2 =  ('Выбери один из перечисленных плейлистов.')
     # SAY_NAME_PLAYLIST = ', скажи название плейлиста'
     RUN_PLAYLIST = ', запускаю плейлист'
 
     FILE_STATUS = 'CurrentStatus'
 
-    PlAYLIST_BY_DEFAULT = 'Что я умею.m3u'
+    PlAYLIST_BY_DEFAULT = 'Программа.m3u'
 
     # Слово - маячок. По нему программа определяет, что обратились к ней.
     FRIEND = 'друг'
