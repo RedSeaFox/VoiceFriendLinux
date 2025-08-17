@@ -52,7 +52,6 @@ rec = KaldiRecognizer(word.MODEL_VOSK, 16000)
 # Большинство команд к другу касаются плеера, поэтому он должен быть всегда доступен
 vlc_instance = vlc.Instance()
 media_list_player = vlc_instance.media_list_player_new()
-new_playlist = True
 
 def load_current_playlist():
     # При запуске программы считываем состояние:какой плейлист был текущим на момент закрытия.
@@ -87,10 +86,76 @@ def load_current_playlist():
     return current_playlist
 
 # Плейлистов несколько.
-# current_playlist = word.PlAYLIST_BY_DEFAULT
+# Храним полный путь к плейлисту и его название
 current_playlist = load_current_playlist()
+# current_playlist_name = ''
 
 len_playlist = 0
+
+# Обрабатывает командe список
+def set_playlist(set_commands, result_text):
+    global current_playlist
+
+    # Получаем название каталога с плейлистами из домашней папки
+    dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
+
+    # Проверяем есть ли такой каталог
+    if not os.path.isdir(dir_playlst):
+        print('Нет каталога с плейлистами. Сообщаем пользователю.')
+        say_text(word.DIR_PLAYLIST_NO)
+        # Может быть сюда вставить загрузку плейлиста по умолчанию? to do
+        return
+
+    # Если каталог есть, то получаем в список все названия файлов из этого каталога
+    list_of_file = os.listdir(dir_playlst)
+    print('Каталог с плейлистами есть.Список файлов')
+    print(list_of_file)
+
+    # Создаем множество, в которое поместим все названия плейлистов из домашней папки
+    # Множество, чтобы можно было получить пересечение с заказанным плейлистом
+    set_of_playlist = set()
+    for file in list_of_file:
+        if file.endswith('.m3u'):
+            name_playlist = file[:-4]
+            set_of_playlist.add(name_playlist)
+
+    # Ищем есть ли названный плелист в списке плейлистов
+    playlist_for_play = set_of_playlist & set_commands
+
+    if len(playlist_for_play) == 0:
+        # Если названный плейлист не найден в списке плейлистов, то перечисляем все плейлисты, которые есть
+        say_text(word.USER_NAME + word.ALL_PLAYLIST_1)
+        time.sleep(2)
+        for name in list_of_file:
+            say_text(str(name) - '.m3u')
+            time.sleep(2)
+            # Это чтобы паузы были между названиями
+
+        # И предлагаем выбрать один из них
+        say_text(word.USER_NAME + word.ALL_PLAYLIST_2)
+
+    else:
+        #  Теперь плейлист будет точно загружаться, а значит надо запомнить позицию в плейлисте
+
+
+
+        # Если плейлист есть в списке, то назначаем его текущим плейлистом
+        current_playlist = dir_playlst + '/' + list(playlist_for_play)[0] + '.m3u'
+
+        # Сохраняем в файл CurrentStatus новый плейлист, на случай аварийного закрытия программы
+        f = open(word.FILE_STATUS, 'w')
+        f.write(current_playlist)
+        f.close()
+
+        # Здесь надо остановить плеер, так как установлен новый плейлист
+        # media_list_player = vlc_instance.media_list_player_new()
+        media_list_player.stop()
+        play_vlc()
+
+    print('current_playlist = ' + current_playlist)
+
+        # to do Если во множестве оказалось несколько плейлистов, то об этом надо сообщить.
+        # Пока берем один элемент множества
 
 
 def load_playlist(playlist_name: str):
@@ -147,9 +212,12 @@ def play_vlc():
     global len_playlist
 
     print('play_vlc() current_playlist = ' + current_playlist)
+    # Здесь надо сообщить, какой плейлист загружается
+    current_playlist_name = os.path.splitext(os.path.basename(current_playlist))[0]
+    say_text(word.USER_NAME + word.TURT_ON_PLAYLIST + current_playlist_name)
+    time.sleep(2)
 
     # Если плеер уже запущен, но находится в состоянии пауза, то запускаем его (продолжаем играть)
-    # if media_list_player.get_state() == vlc.State(4) and not new_playlist:
     if media_list_player.get_state() == vlc.State(4) :
         media_list_player.pause()
     else:
@@ -373,67 +441,6 @@ def go_to(set_commands, result_text):
         say_text(word.USER_NAME + word.MEASURE_UNDEFINED)
 
 
-def set_playlist(set_commands, result_text):
-    global current_playlist, new_playlist
-
-    # to do Здесь надо сохранять позицию закрываемого плейлиста
-    # Получаем название каталога с плейлистами из домашней папки
-    dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
-
-    # Проверяем есть ли такой каталог
-    if not os.path.isdir(dir_playlst):
-        print('Нет каталога с плейлистами. Сообщаем пользователю.')
-        say_text(word.DIR_PLAYLIST_NO)
-        # Может быть сюда вставить загрузку плейлиста по умолчанию? to do
-        return
-
-    # Если каталог есть, то получаем в список все названия файлов из этого каталога
-    list_of_file = os.listdir(dir_playlst)
-    print('Каталог с плейлистами есть.Список файлов')
-    print(list_of_file)
-
-    # Создаем множество, в которое поместим все названия плейлистов из домашней папки
-    # Множество, чтобы можно было получить пересечение с заказанным плейлистом
-    set_of_playlist = set()
-    for file in list_of_file:
-        if file.endswith('.m3u'):
-            name_playlist = file[:-4]
-            set_of_playlist.add(name_playlist)
-
-    # Ищем есть ли названный плелист в списке плейлистов
-    playlist_for_play = set_of_playlist & set_commands
-
-    if len(playlist_for_play) == 0:
-        # Если названный плейлист не найден в списке плейлистов, то перечисляем все плейлисты, которые есть
-        say_text(word.USER_NAME + word.ALL_PLAYLIST_1)
-        time.sleep(2)
-        for name in list_of_file:
-            say_text(str(name))
-            # Это чтобы паузы были между названиями
-
-        say_text(word.USER_NAME + word.ALL_PLAYLIST_2)
-
-    else:
-        # Если плейлист есть в списке, то назначаем его текущим плейлистом
-        current_playlist = dir_playlst + '/' + list(playlist_for_play)[0] + '.m3u'
-
-        # Сохраняем в файл CurrentStatus новый плейлист, на случай аварийного закрытия программы
-        f = open(word.FILE_STATUS, 'w')
-        f.write(current_playlist)
-        f.close()
-
-        # Здесь надо остановить плеер, так как установлен новый плейлист
-        # media_list_player.set_media_list
-        # media_list_player = vlc_instance.media_list_player_new()
-        media_list_player.stop()
-        # new_playlist = True
-        play_vlc()
-
-    print('current_playlist = ' + current_playlist)
-
-        # to do Если во множестве оказалось несколько плейлистов, то об этом надо сообщить.
-        # Пока берем один элемент множества
-
 # Быстрая перемотка вперед. Прыжок через несколько треков (например два трека)
 # или через несколько секунд/минут/часов (например 20 секунд)
 # Пока распознается только время или в секундах, или в минутах, или в часах.
@@ -556,8 +563,8 @@ def execute_command(commands_to_execute, set_commands, result_text):
         say_text(word.USER_NAME + word.NO_COMMAND)
         print('execute_command():', word.NO_COMMAND)
     elif not commands_to_execute.isdisjoint(word.SET_PLAY):
-        say_text(word.USER_NAME + word.PLAYER_START)
-        print('execute_command(): ', word.PLAYER_START)
+        # say_text(word.USER_NAME + word.PLAYER_START)
+        # print('execute_command(): ', word.PLAYER_START)
         # Linux +
         # time.sleep(3)
         # Linux-
@@ -586,7 +593,7 @@ def execute_command(commands_to_execute, set_commands, result_text):
         go_back(set_commands, result_text)
     elif not commands_to_execute.isdisjoint(word.SET_PlAYLIST):
         set_commands -= word.SET_PlAYLIST
-        print('execute_command(): PlAYLIST /', word.PlAYLIST)
+        # print('execute_command(): PlAYLIST /', word.PlAYLIST)
         set_playlist(set_commands, result_text)
     elif not commands_to_execute.isdisjoint(word.SET_SEARCH):
         commands_to_execute -= word.SET_SEARCH
