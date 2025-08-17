@@ -66,14 +66,12 @@ def load_current_playlist():
     if os.path.isfile(name_file_status):
         f = open(name_file_status)
         current_playlist = f.read()
-        # dir_playlist = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST + '/'
     else:
         # Если файла состояния CurrentStatus нет, то создаем его, т.к. он нужен для хранения текущего плейлиста
         # В этот файл CurrentStatus записываем плейлист с информацией о программе, который хранится в каталоге с программой
         f = open(name_file_status, 'w')
         current_playlist = word.PlAYLIST_BY_DEFAULT
         f.write(current_playlist)
-        # dir_playlist = ''
 
     f.close()
 
