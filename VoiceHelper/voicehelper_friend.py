@@ -52,6 +52,7 @@ rec = KaldiRecognizer(word.MODEL_VOSK, 16000)
 # Большинство команд к другу касаются плеера, поэтому он должен быть всегда доступен
 vlc_instance = vlc.Instance()
 media_list_player = vlc_instance.media_list_player_new()
+media_list = vlc_instance.media_list_new()
 
 def load_current_playlist():
     # При запуске программы считываем состояние:какой плейлист был текущим на момент закрытия.
@@ -92,7 +93,7 @@ current_playlist = load_current_playlist()
 
 len_playlist = 0
 
-# Обрабатывает командe список
+# Обрабатывает команду список
 def set_playlist(set_commands, result_text):
     global current_playlist
 
@@ -127,20 +128,71 @@ def set_playlist(set_commands, result_text):
         say_text(word.USER_NAME + word.ALL_PLAYLIST_1)
         time.sleep(2)
         for name in list_of_file:
-            say_text(str(name) - '.m3u')
-            time.sleep(2)
+            say_text(os.path.splitext(os.path.basename(name))[0])
+            time.sleep(0.1)
             # Это чтобы паузы были между названиями
 
         # И предлагаем выбрать один из них
         say_text(word.USER_NAME + word.ALL_PLAYLIST_2)
 
     else:
-        #  Теперь плейлист будет точно загружаться, а значит надо запомнить позицию в плейлисте
+        #  Теперь плейлист будет точно загружаться, а значит надо запомнить позицию в плейлисте.
+        # Ищем файл с именем как у текущего плейлиста, чтобы записать в него информацию о треке
+        # to do переделать на json?
+        #
+        current_playlist_name = os.path.splitext(os.path.basename(current_playlist))[0]
+        current_playlist_name_with_dir = dir_playlst + '/' + current_playlist_name
+
+        # if media_list_player.get_state() == vlc.State(0):
+        #     play_vlc()
+        #     media_list_player.set_pause(1)
+
+        media_player = media_list_player.get_media_player()
+        n = media_player.get_position()
+        print('media_player.get_position() = ', n)
+        # nn = media_player.audio_get_track()
+        # print('media_player.audio_get_track()', nn)
+
+        med = media_player.get_media()
+        # Получаем имя трека
+        print('med.get_mrl() = ', med.get_mrl())
+        print('med.get_type()', med.get_type())
+        index_of_media = media_list.index_of_item(med)
+        print('index_of_media', index_of_media)
 
 
+        # inst = media_list_player.get_instance()
 
-        # Если плейлист есть в списке, то назначаем его текущим плейлистом
+        # Можно получить текущий воспроизводимый файл
+        # med = media_player.get_media()
+        # med.tracks_get() если None, то значит это не медиа файл.
+        # Можно использовать это условие, чтобы перейти к следующему треку,
+        # но это еще один объект. Пока он не нужен
+        # b1=med.tracks_get()
+        # Смотрела также эти варианты
+        # b3=med.get_mrl() можно получить имя трека
+        # b2=med.get_tracks_info()
+        # b5=med.get_state()
+        # b6=med.get_type()
+
+        # Получаем номер текущего трека?
+        # media_player.get_media_player_item()
+
+
+        # media_list_player.
+        # Если файла с позицией в плейлисте не существуе, то создаем его
+        if not (os.path.isfile(dir_playlst + '/' + current_playlist_name)):
+            f = open(current_playlist_name_with_dir, 'w')
+            # Вписываем в файл трек и позицию в нем
+            f.write(current_playlist)
+            f.close()
+
+            print()
+
+
+        # Если новый плейлист есть в списке, то назначаем его текущим плейлистом
         current_playlist = dir_playlst + '/' + list(playlist_for_play)[0] + '.m3u'
+
 
         # Сохраняем в файл CurrentStatus новый плейлист, на случай аварийного закрытия программы
         f = open(word.FILE_STATUS, 'w')
@@ -205,11 +257,16 @@ def load_playlist(playlist_name: str):
     playlist_list.append(word.END_OF_LIST)
     playlist_list.insert(0, word.START_OF_LIST)
 
+    # # Чтобы избежать дублей в плейлисте
+    # to_set = set(playlist_list)
+    # playlist_list = list(to_set)
+
     return playlist_list
 
 
 def play_vlc():
     global len_playlist
+    global media_list
 
     print('play_vlc() current_playlist = ' + current_playlist)
     # Здесь надо сообщить, какой плейлист загружается
@@ -235,6 +292,7 @@ def play_vlc():
             say_text(word.PLAYLIST_EMPTY)
             return
 
+        # to do Сделать media_list глобальным?
         media_list = vlc_instance.media_list_new()
 
         for song in playlist_list:
@@ -242,7 +300,24 @@ def play_vlc():
 
         media_list_player.set_media_list(media_list)
 
+        # dev +
+        # Получаем из файла данные о текущем треке и текущей позиции
+
+
+        # Текщую позицию при сохранении получаем так
+        media_player = media_list_player.get_media_player()
+        # n = media_player.get_position()
+        # print('media_player.get_position() = ', n)
+        # Значит устанавливать будем так:
+        # media_player.set_position(0.5)
+
+        # media_list_player.play_item_at_index(2)
+        # Или так?
+        # media_player.set_mrl('/home/seafox/VoiceFriend_Musik/Песни/ABBA - MONEY, MONEY, MONEY.mp3')
+        # dev -
+
         media_list_player.play()
+        media_player.set_position(0.5)
 
 #  Вариант с pyttsx3 (engine) использовала в Windows
 # def say_text(text):
@@ -678,6 +753,22 @@ def main():
 
                     print('main(): The word friend has been discovered. set_commands=', set_commands, ', Running process_text_main')
                     process_text_main(set_commands, result_text)
+
+            print('media_list_player.get_state() = ', media_list_player.get_state())
+            media_player = media_list_player.get_media_player()
+            n = media_player.get_position()
+            print('media_player.get_position() = ', n)
+            nn = media_player.audio_get_track()
+            print('media_player.audio_get_track()', nn)
+
+            print('audio_get_track_description = ', media_player.audio_get_track_description())
+
+            if not media_list_player.get_state() == vlc.State(0):
+                med = media_player.get_media()
+                # можно получить имя трека
+                print('med.get_mrl() = ', med.get_mrl())
+                # MediaList.index_of_item
+
 
             # vlc.State(6) (Ended) может быть или если список закончился или если файл не воспроизводится (не медиа формат)
             if media_list_player.get_state() == vlc.State(6):
