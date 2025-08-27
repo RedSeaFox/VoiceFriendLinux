@@ -64,28 +64,53 @@ def read_statuses_from_file():
     # При запуске программы считываем состояние:какой плейлист был текущим на момент закрытия,
     # какой трек и позицию в треке из файла CurrentStatus (word.FILE_STATUS) в каталоге программы
     name_file_status = word.FILE_STATUS
+    current_playlist = word.PlAYLIST_BY_DEFAULT
+    current_track_index = 0
+    current_track_position = 0
 
     # Считываем данные из json файла
     try:
-        with open(name_file_status, 'r', encoding='utf-8') as file:
+        with (open(name_file_status, 'r', encoding='utf-8') as file):
             loaded_data = json.load(file)
+            print('json файл считан')
             # Получаем последний плейлист
-            current_playlist = loaded_data.get("CurrentPlaylist", word.PlAYLIST_BY_DEFAULT)
+            current_playlist = loaded_data.get("current_playlist", word.PlAYLIST_BY_DEFAULT)
+            # current_playlist = loaded_data.get("current_playlist", word.PlAYLIST_BY_DEFAULT)
+            print('current_playlist = ', current_playlist)
             # Получаем последний трек
             if current_playlist == word.PlAYLIST_BY_DEFAULT:
                 current_track_index = 0
                 current_track_position = 0
             else:
                 # current_track = loaded_data.get(current_playlist, {})
-                current_track_index = loaded_data.get(current_playlist.get("track_number",0), 0)
-                current_track_position = loaded_data.get(current_playlist.get("track_position",0), 0)
-
-    except (json.JSONDecodeError, FileNotFoundError):
+                # ******************
+                dir_name_track = Path(current_playlist)
+                print('dir_name_track = ', dir_name_track)
+                dir_track = dir_name_track.parent
+                print('dir_track = ', dir_track)
+                # Надо получить имя плейлиста, а не папки!!!
+                # current_playlist_name = dir_track.name
+                current_playlist_name = dir_name_track.stem
+                print('current_playlist_name = ', current_playlist_name)
+                # *****************
+                # current_track_index = loaded_data.get(current_playlist.get("track_number",0), 0)
+                seek_playlist = loaded_data[current_playlist_name]
+                current_track_index = seek_playlist['current_track_index']
+                current_track_position = seek_playlist["current_track_position"]
+                # ].get(current_playlist.get("track_number",0), 0)
+                # current_track_position = loaded_data.get(current_playlist.get("track_position",0), 0)
+            print('current_track_index = ',current_track_index, '  current_track_position = ', current_track_position)
+    except FileNotFoundError:
+        print("FileNotFoundError")
         current_playlist = word.PlAYLIST_BY_DEFAULT
         current_track_index = 0
         current_track_position = 0
-        print('Чтение json. Файл не найден или поврежден. Берем значения по умолчанию')
-
+        # print('Чтение json. Файл не найден или поврежден. Берем значения по умолчанию')
+    except json.JSONDecodeError:
+        print('JSONDecodeError')
+        current_playlist = word.PlAYLIST_BY_DEFAULT
+        current_track_index = 0
+        current_track_position = 0
     except Exception as e:
         # Другие возможные ошибки при работе с файлом
         print(f"Произошла другая ошибка: {e}")
@@ -115,6 +140,8 @@ def read_statuses_from_track():
     dir_name_track = Path(decoded_mrl)
     dir_track = dir_name_track.parent
     current_playlist_name = dir_track.name
+    # to do Если программа, то сохранять в каталог с программой
+
     current_playlist = dir_playlist + '/' + current_playlist_name + '.m3u'
 
     statuses = {"current_playlist_name": current_playlist_name, "current_playlist": current_playlist,
@@ -197,86 +224,15 @@ def set_playlist(set_commands, result_text):
 
         # И предлагаем выбрать один из них
         say_text(word.USER_NAME + word.ALL_PLAYLIST_2)
-
     else:
         #  Теперь новый плейлист будет точно загружаться, а значит надо запомнить старый плейлист и позицию в медиа.
         # Сохраняем данные в word.FILE_STATUS
         save_current_status()
-        # name_file_status = word.FILE_STATUS
-        #
-        # # Получаем данные старого плейлиста
-        # current_playlist_name = os.path.splitext(os.path.basename(current_playlist))[0]
-        # current_playlist_name_with_dir = dir_playlst + '/' + current_playlist_name
-        #
-        # media_player = media_list_player.get_media_player()
-        # position_in_media = media_player.get_position()
-        # print('media_player.get_position() = ', position_in_media)
-        #
-        # med = media_player.get_media()
-        # index_of_media = media_list.index_of_item(med)
-        # print('index_of_media', index_of_media)
-        # # Можно получить имя трека
-        # # print('med.get_mrl() = ', med.get_mrl())
-        #
-        # # Считываем данные из json файла в loaded_data, добавляем в loaded_data данные старого плейлиста
-        # #  и записываем loaded_data опять в json файл
-        # try:
-        #     with open(name_file_status, 'r', encoding='utf-8') as file:
-        #         loaded_data = json.load(file)
-        # except json.JSONDecodeError:
-        #     print('json файла поврежден. Создаем новый пустой json файл')
-        #     loaded_data = {}
-        #     # data = {"CurrentPlaylist": word.PlAYLIST_BY_DEFAULT}
-        #     # with open(name_file_status, 'w', encoding='utf-8') as file:
-        #     #     json.dump(data, file, ensure_ascii=False, indent=4)
-        # except FileNotFoundError:
-        #     print(f"Ошибка: Файл  не найден.")
-        #     loaded_data = {}
-        #     # current_playlist = word.PlAYLIST_BY_DEFAULT
-        #     # data = {'CurrentPlaylist': word.PlAYLIST_BY_DEFAULT}
-        #     # with open(name_file_status, 'w', encoding='utf-8') as file:
-        #     #     json.dump(data, file, ensure_ascii=False, indent=4)
-        # except Exception as e:
-        #     # Другие возможные ошибки при работе с файлом
-        #     print(f"Произошла другая ошибка: {e}")
-        #     loaded_data = {}
-        #
-        # print('loaded_data: ', loaded_data)
-        #
-        # new_data = {'духовное': {'track_number': 3, 'track_position': 0.5}}
-        # # new_data = {'NamePlaylist': 'песни'}
-        # # Теперь работаем со словарем
-        # # loaded_data.setdefault('CurrentPlaylist')
-        # # new_data = {}
-        # # if 'CurrentPlaylist' in loaded_data:
-        # #     loaded_data
-        # # loaded_data['CurrentPlaylist'] =
-        # tn = {'track_number': 3}
-        # tp = {'track_position' : 0.5}
-        # track_info = {tn, tp}
-        # # loaded_data[current_playlist_name] =
-        # print('new_data: ', new_data)
-        #
-        # final_data = {**loaded_data, **new_data}
-        #
-        # print('final_data: ', final_data)
-        #
-        # with open(name_file_status, 'w', encoding='utf-8') as file:
-        #     json.dump(final_data, file, ensure_ascii=False, indent=4)
-        #
-        # # Если новый плейлист есть в списке, то назначаем его текущим плейлистом
-        # current_playlist = dir_playlst + '/' + list(playlist_for_play)[0] + '.m3u'
-        #
-        #
-        # # Сохраняем в файл CurrentStatus новый плейлист, на случай аварийного закрытия программы
-        # f = open(word.FILE_STATUS, 'w')
-        # f.write(current_playlist)
-        # f.close()
 
-        # Здесь надо остановить плеер, так как установлен новый плейлист
-        # media_list_player = vlc_instance.media_list_player_new()
         media_list_player.stop()
-        play_vlc()
+
+        new_playlist = list(playlist_for_play)[0]
+        play_vlc(new_playlist)
 
         # to do Если во множестве оказалось несколько плейлистов, то об этом надо сообщить.
         # Пока берем один элемент множества
@@ -336,7 +292,7 @@ def load_playlist(playlist_name: str):
     return playlist_list
 
 
-def play_vlc():
+def play_vlc(playlist_for_play='Программа.m3u'):
     global len_playlist
     global media_list
 
@@ -352,6 +308,29 @@ def play_vlc():
         say_text(word.USER_NAME + word.START_ON_PLAYLIST + statuses["current_playlist_name"])
         time.sleep(2)
         media_list_player.pause()
+
+    elif media_list_player.get_state() == vlc.State(5) :
+        # Получаем название каталога с плейлистами из домашней папки
+        dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
+        new_playlist = dir_playlst + '/' + playlist_for_play + '.m3u'
+        playlist_list = load_playlist(new_playlist)
+
+        len_playlist = len(playlist_list)
+
+        # if len(playlist_list) == 0:
+        if len_playlist == 0:
+            say_text(word.PLAYLIST_EMPTY)
+            return
+
+        media_list = vlc_instance.media_list_new()
+
+        for song in playlist_list:
+            media_list.add_media(song.rstrip())
+
+        media_list_player.set_media_list(media_list)
+
+        media_list_player.play()
+
     else:
         # Если плеер еще не запущен - запускаем.
         # При этом создаем новый плейлист и загружаем в него список
