@@ -57,6 +57,8 @@ vlc_instance = vlc.Instance()
 media_list_player = vlc_instance.media_list_player_new()
 media_list = vlc_instance.media_list_new()
 
+len_playlist = 0
+
 
 def read_statuses_from_file():
     # При запуске программы считываем состояние:какой плейлист был текущим на момент закрытия,
@@ -93,15 +95,10 @@ def read_statuses_from_file():
 
     return statuses
 
-# Плейлистов несколько.
-# Храним полный путь к плейлисту и его название
-# current_playlist = load_current_playlist()
-statuses = read_statuses_from_file()
-# current_playlist_name = ''
-
-len_playlist = 0
 
 def read_statuses_from_track():
+    dir_playlist = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
+
     media_player = media_list_player.get_media_player()
     # Получаем позицию в текущем треке
     position_in_media = media_player.get_position()
@@ -118,8 +115,9 @@ def read_statuses_from_track():
     dir_name_track = Path(decoded_mrl)
     dir_track = dir_name_track.parent
     current_playlist_name = dir_track.name
+    current_playlist = dir_playlist + '/' + current_playlist_name + '.m3u'
 
-    statuses = {"current_playlist_name": current_playlist_name, "dir_track": dir_track,
+    statuses = {"current_playlist_name": current_playlist_name, "current_playlist": current_playlist,
                 "current_track_index": index_of_media, "current_track_position": position_in_media}
 
     return statuses
@@ -147,10 +145,10 @@ def save_current_status():
 
     print('loaded_data из файла: ', loaded_data)
 
-    current_playlist_name = statuses["current_playlist_name"]
-    current_playlist = dir_playlist + '/' + current_playlist_name + '.m3u'
+    current_playlist = statuses["current_playlist"]
     loaded_data["current_playlist"] = current_playlist
 
+    current_playlist_name = statuses["current_playlist_name"]
     track_info = {"current_track_index": statuses["current_track_index"],
                   "current_track_position": statuses["current_track_position"]}
     loaded_data[current_playlist_name] = track_info
@@ -344,25 +342,26 @@ def play_vlc():
     global len_playlist
     global media_list
 
-    print('play_vlc() current_playlist = ' + current_playlist)
+    # print('play_vlc() current_playlist = ' + current_playlist)
     # Здесь надо сообщить, какой плейлист загружается
-    current_playlist_name = os.path.splitext(os.path.basename(current_playlist))[0]
-    say_text(word.USER_NAME + word.TURT_ON_PLAYLIST + current_playlist_name)
-    time.sleep(2)
+    # current_playlist_name = os.path.splitext(os.path.basename(current_playlist))[0]
+    # say_text(word.USER_NAME + word.START_ON_PLAYLIST + current_playlist_name)
+    # time.sleep(2)
 
     # Если плеер уже запущен, но находится в состоянии пауза, то запускаем его (продолжаем играть)
     if media_list_player.get_state() == vlc.State(4) :
-
-        say_text(word.USER_NAME + word.START_ON_PLAYLIST + current_playlist_name)
+        statuses = read_statuses_from_track()
+        say_text(word.USER_NAME + word.START_ON_PLAYLIST + statuses["current_playlist_name"])
         time.sleep(2)
         media_list_player.pause()
     else:
         # Если плеер еще не запущен - запускаем.
         # При этом создаем новый плейлист и загружаем в него список
         # Плейлист из файла загружаем в список (список, а не кортеж, т.к. планируется добавление в плейлист?)
-        # Linux
         # Плейлисты будут хранится в /home/seafox/VoiceFriend_PlayLists/
-        playlist_list = load_playlist(current_playlist)
+
+        statuses = read_statuses_from_file()
+        playlist_list = load_playlist(statuses["current_playlist"])
 
         len_playlist = len(playlist_list)
 
@@ -371,7 +370,6 @@ def play_vlc():
             say_text(word.PLAYLIST_EMPTY)
             return
 
-        # to do Сделать media_list глобальным?
         media_list = vlc_instance.media_list_new()
 
         for song in playlist_list:
@@ -379,24 +377,25 @@ def play_vlc():
 
         media_list_player.set_media_list(media_list)
 
-        # dev +
-        # Получаем из файла данные о текущем треке и текущей позиции
+        # Получаем из файла данные о текущем треке и текущей позиции.
+        # Выбираем трек и позицию в нем для воспроизведения
+        media_list_player.play_item_at_index(statuses["current_track_index"])
 
+        media_player = media_list_player.get_media_player()
+        media_player.set_position(statuses["current_track_position"])
+
+        media_list_player.play()
 
         # Текщую позицию при сохранении получаем так
-        media_player = media_list_player.get_media_player()
+        # media_player = media_list_player.get_media_player()
         # n = media_player.get_position()
         # print('media_player.get_position() = ', n)
         # Значит устанавливать будем так:
         # media_player.set_position(0.5)
-
         # media_list_player.play_item_at_index(2)
         # Или так?
         # media_player.set_mrl('/home/seafox/VoiceFriend_Musik/Песни/ABBA - MONEY, MONEY, MONEY.mp3')
         # dev -
-
-        media_list_player.play()
-        media_player.set_position(0.5)
 
 #  Вариант с pyttsx3 (engine) использовала в Windows
 # def say_text(text):
