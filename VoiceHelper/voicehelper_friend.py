@@ -187,7 +187,7 @@ def set_playlist(set_commands, result_text):
     playlist_for_play = set_of_playlist & set_commands
 
     if len(playlist_for_play) == 0:
-        # Если названный плейлист не найден в списке плейлистов, то перечисляем все плейлисты, которые есть
+        # Если названый плейлист не найден в списке плейлистов, то перечисляем все плейлисты, которые есть
         say_text(word.USER_NAME + word.ALL_PLAYLIST_1)
         time.sleep(2)
         for name in set_of_playlist:
@@ -277,8 +277,6 @@ def set_playlist(set_commands, result_text):
         # media_list_player = vlc_instance.media_list_player_new()
         media_list_player.stop()
         play_vlc()
-
-    print('current_playlist = ' + current_playlist)
 
         # to do Если во множестве оказалось несколько плейлистов, то об этом надо сообщить.
         # Пока берем один элемент множества
@@ -715,6 +713,7 @@ def execute_command(commands_to_execute, set_commands, result_text):
     if not commands_to_execute:
         say_text(word.USER_NAME + word.NO_COMMAND)
         print('execute_command():', word.NO_COMMAND)
+        save_current_status()
     elif not commands_to_execute.isdisjoint(word.SET_PLAY):
         # say_text(word.USER_NAME + word.PLAYER_START)
         # print('execute_command(): ', word.PLAYER_START)
@@ -791,9 +790,10 @@ def process_text_main(set_commands, result_text):
 
 
 def bye():
-    f = open(word.FILE_STATUS, 'w')
-    f.write(current_playlist)
-    f.close()
+    # f = open(word.FILE_STATUS, 'w')
+    # f.write(current_playlist)
+    # f.close()
+    save_current_status()
 
     stream.stop_stream()
     stream.close()
