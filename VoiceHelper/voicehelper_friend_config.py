@@ -172,7 +172,7 @@ elif LANGUAGE == 'ru':
     # Каталог с плейлистами
     DIR_PLAYLIST = 'VoiceFriend_PlayLists'
     DIR_PLAYLIST_NO = 'Не найден каталог с плейлистами.'
-    TURT_ON_PLAYLIST = ', включаю плейлист '
+    START_ON_PLAYLIST = ', включаю плейлист '
 
     ALL_PLAYLIST_1 = (', я не услышал название плейлиста. Плейлисты которые ты можешь запустить.')
     ALL_PLAYLIST_2 =  ('Выбери один из перечисленных плейлистов.')

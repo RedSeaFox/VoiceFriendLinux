@@ -101,10 +101,7 @@ statuses = read_statuses_from_file()
 
 len_playlist = 0
 
-def save_current_status():
-    name_file_status = word.FILE_STATUS
-    dir_playlist = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
-
+def read_statuses_from_track():
     media_player = media_list_player.get_media_player()
     # Получаем позицию в текущем треке
     position_in_media = media_player.get_position()
@@ -117,19 +114,26 @@ def save_current_status():
 
     # Получаем имя текущего плейлиста
     mrl = med.get_mrl()
-    # mrl = 'file:///home/seafox/VoiceFriend_Musik/%D0%9F%D0%B5%D1%81%D0%BD%D0%B8/%E2%80%9C%D0%90%D0%A5%2C%20%D0%A2%D0%AB%20%D0%94%D0%A3%D0%A8%D0%95%D0%A7%D0%9A%D0%90%E2%80%9C%20-%20%D0%A1%D0%95%D0%A0%D0%93%D0%95%D0%99%20%D0%9B%D0%95%D0%9C%D0%95%D0%A8%D0%95%D0%92%20%28%D0%90%D1%85%D1%82%D0%B0%D0%95%D0%B2%D0%B0%29.mp3'
     decoded_mrl = unquote(mrl)
-    current_playlist_name_with_dir = Path(decoded_mrl)
     dir_name_track = Path(decoded_mrl)
-    parent_directory_path = dir_name_track.parent
-    current_playlist_name = parent_directory_path.name
+    dir_track = dir_name_track.parent
+    current_playlist_name = dir_track.name
 
-    # # Получаем данные закрываемого плейлиста (который сейчас сменим на новый плейлист)
-    # current_playlist_name = os.path.splitext(os.path.basename(current_playlist))[0]
-    # current_playlist_name_with_dir = dir_playlist + '/' + current_playlist_name
+    statuses = {"current_playlist_name": current_playlist_name, "dir_track": dir_track,
+                "current_track_index": index_of_media, "current_track_position": position_in_media}
 
-    # Считываем данные из json файла в loaded_data, добавляем в loaded_data данные старого плейлиста
-    #  и записываем loaded_data опять в json файл
+    return statuses
+
+
+def save_current_status():
+    name_file_status = word.FILE_STATUS
+    dir_playlist = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
+
+    # Получаем данные закрываемого плейлиста (который сейчас сменим на новый плейлист)
+    statuses = read_statuses_from_track()
+
+    # Считываем данные из json файла в loaded_data, добавляем в loaded_data данные закрываемого плейлиста
+    # и записываем loaded_data опять в json файл
     try:
         with open(name_file_status, 'r', encoding='utf-8') as file:
             loaded_data = json.load(file)
@@ -143,28 +147,18 @@ def save_current_status():
 
     print('loaded_data из файла: ', loaded_data)
 
-    loaded_data["current_playlist"] = dir_name_track
-    track_info = {"current_track_index": index_of_media, "current_track_position": position_in_media}
+    current_playlist_name = statuses["current_playlist_name"]
+    current_playlist = dir_playlist + '/' + current_playlist_name + '.m3u'
+    loaded_data["current_playlist"] = current_playlist
+
+    track_info = {"current_track_index": statuses["current_track_index"],
+                  "current_track_position": statuses["current_track_position"]}
     loaded_data[current_playlist_name] = track_info
 
     print('loaded_data в файл: ', loaded_data)
 
     with open(name_file_status, 'w', encoding='utf-8') as file:
         json.dump(loaded_data, file, ensure_ascii=False, indent=4)
-
-    # Если новый плейлист есть в списке, то назначаем его текущим плейлистом
-    # current_playlist = dir_playlist + '/' + list(playlist_for_play)[0] + '.m3u'
-    current_playlist = dir_playlist + '/' + current_playlist_name + '.m3u'
-
-    # # Сохраняем в файл CurrentStatus новый плейлист, на случай аварийного закрытия программы
-    # f = open(word.FILE_STATUS, 'w')
-    # f.write(current_playlist)
-    # f.close()
-
-    # Здесь надо остановить плеер, так как установлен новый плейлист
-    # media_list_player = vlc_instance.media_list_player_new()
-    # media_list_player.stop()
-    # play_vlc()
 
 
 # Обрабатывает команду список
@@ -358,6 +352,9 @@ def play_vlc():
 
     # Если плеер уже запущен, но находится в состоянии пауза, то запускаем его (продолжаем играть)
     if media_list_player.get_state() == vlc.State(4) :
+
+        say_text(word.USER_NAME + word.START_ON_PLAYLIST + current_playlist_name)
+        time.sleep(2)
         media_list_player.pause()
     else:
         # Если плеер еще не запущен - запускаем.
