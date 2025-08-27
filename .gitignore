@@ -19,5 +19,6 @@ venv/
 *test*
 *Test*
 хOther
-CurrentStatus
+CurrentStatus*
 .gitignore
+*copy*
