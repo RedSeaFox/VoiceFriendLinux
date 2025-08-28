@@ -213,8 +213,6 @@ def set_playlist(set_commands, result_text):
     global media_list_player
     global media_list
 
-    if
-
     # Получаем название каталога с плейлистами из домашней папки
     dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
     # Проверяем есть ли такой каталог
