@@ -213,6 +213,8 @@ def set_playlist(set_commands, result_text):
     global media_list_player
     global media_list
 
+    if
+
     # Получаем название каталога с плейлистами из домашней папки
     dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
     # Проверяем есть ли такой каталог
@@ -396,6 +398,7 @@ def play_vlc(playlist_for_play='Программа.m3u'):
                 print('play_vlc() считанные данные о запускаемом плейлисте')
                 print('read_statuses_from_file() =>  current_track_index = ', current_track_index,
                       '  current_track_position = ', current_track_position)
+                current_playlist = playlist_for_play
         except FileNotFoundError:
             print("FileNotFoundError")
             current_playlist = word.PlAYLIST_BY_DEFAULT
@@ -411,16 +414,15 @@ def play_vlc(playlist_for_play='Программа.m3u'):
             # Другие возможные ошибки при работе с файлом
             print(f"Произошла другая ошибка: {e}")
 
-        statuses = {"current_playlist": current_playlist, "current_track_index": current_track_index,
-                    "current_track_position": current_track_position}
+        # statuses = {"current_playlist": current_playlist, "current_track_index": current_track_index,
+        #             "current_track_position": current_track_position}
 
-        print('statuses', statuses)
-
-        # ****************************************
+        media_list_player.play_item_at_index(current_track_index)
+        print('play_vlc() => current_track_index = ', current_track_index)
 
         media_player = media_list_player.get_media_player()
-        media_player.set_position(statuses["current_track_position"])
-        print('play_vlc() => current_track_position = ', statuses["current_track_position"])
+        media_player.set_position(current_track_position)
+        print('play_vlc() => current_track_position = ', current_track_position)
 
         print('play_vlc() => State(5) ')
         media_list_player.play()
@@ -828,7 +830,7 @@ def execute_command(commands_to_execute, set_commands, result_text):
     if not commands_to_execute:
         say_text(word.USER_NAME + word.NO_COMMAND)
         print('execute_command():', word.NO_COMMAND)
-        # save_current_status()
+        save_current_status()
     elif not commands_to_execute.isdisjoint(word.SET_PLAY):
         # say_text(word.USER_NAME + word.PLAYER_START)
         # print('execute_command(): ', word.PLAYER_START)
