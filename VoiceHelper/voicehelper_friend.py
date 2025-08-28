@@ -122,6 +122,9 @@ def read_statuses_from_file():
 
 
 def read_statuses_from_track():
+    global media_list_player
+    global media_list
+
     dir_playlist = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
 
     media_player = media_list_player.get_media_player()
@@ -150,8 +153,11 @@ def read_statuses_from_track():
     dir_track = dir_name_track.parent
     current_playlist_name = dir_track.name
     # to do Если программа, то сохранять в каталог с программой
-
-    current_playlist = dir_playlist + '/' + current_playlist_name + '.m3u'
+    # Здесь возможно надо исправить и вообще подумать нужен ли плейдист по умолчанию
+    if current_playlist_name == word.PlAYLIST_BY_DEFAULT:
+        current_playlist = current_playlist_name + '.m3u'
+    else:
+        current_playlist = dir_playlist + '/' + current_playlist_name + '.m3u'
 
     statuses = {"current_playlist_name": current_playlist_name, "current_playlist": current_playlist,
                 "current_track_index": index_of_media, "current_track_position": position_in_media}
@@ -204,6 +210,9 @@ def save_current_status():
 
 # Обрабатывает команду список
 def set_playlist(set_commands, result_text):
+    global media_list_player
+    global media_list
+
     # Получаем название каталога с плейлистами из домашней папки
     dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
     # Проверяем есть ли такой каталог
@@ -312,6 +321,7 @@ def load_playlist(playlist_name: str):
 def play_vlc(playlist_for_play='Программа.m3u'):
     global len_playlist
     global media_list
+    global media_list_player
 
     # print('play_vlc() current_playlist = ' + current_playlist)
     # Здесь надо сообщить, какой плейлист загружается
@@ -328,6 +338,10 @@ def play_vlc(playlist_for_play='Программа.m3u'):
 
     #  Если Stopped
     elif media_list_player.get_state() == vlc.State(5) :
+        say_text(word.USER_NAME + word.START_ON_PLAYLIST + playlist_for_play)
+        # current_playlist_name = playlist_for_play
+
+        statuses = read_statuses_from_file()
         # Получаем название каталога с плейлистами из домашней папки
         dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
         new_playlist = dir_playlst + '/' + playlist_for_play + '.m3u'
@@ -346,6 +360,13 @@ def play_vlc(playlist_for_play='Программа.m3u'):
             media_list.add_media(song.rstrip())
 
         media_list_player.set_media_list(media_list)
+
+        # Получаем из файла данные о текущем треке и текущей позиции.
+        # Выбираем трек и позицию в нем для воспроизведения
+        media_list_player.play_item_at_index(statuses["current_track_index"])
+
+        media_player = media_list_player.get_media_player()
+        media_player.set_position(statuses["current_track_position"])
 
         print('State(5) ')
         media_list_player.play()
@@ -371,7 +392,6 @@ def play_vlc(playlist_for_play='Программа.m3u'):
             return
 
         media_list = vlc_instance.media_list_new()
-
 
         for song in playlist_list:
             media_list.add_media(song.rstrip())
@@ -470,10 +490,16 @@ def listen_to_user():
 
 
 def play_next():
+    global media_list_player
+    global media_list
+
     media_list_player.next()
 
 
 def play_previous():
+    global media_list_player
+    global media_list
+
     media_list_player.previous()
     time.sleep(1)
 
@@ -568,6 +594,9 @@ def get_number(set_commands, result_text):
 # Пока распознается только время или в секундах, или в минутах, или в часах.
 # То есть время 2 минуты 6 секунд будет распознано как 8 секунд
 def go_to(set_commands, result_text):
+    global media_list_player
+    global media_list
+
     number = get_number(set_commands, result_text)
     print('go_to(): number: ', number)
 
@@ -612,6 +641,9 @@ def go_to(set_commands, result_text):
 # Пока распознается только время или в секундах, или в минутах, или в часах.
 # То есть время 2 минуты 6 секунд будет распознано как 8 секунд
 def go_forward(set_commands, result_text):
+    global media_list_player
+    global media_list
+
     number = get_number(set_commands, result_text)
 
     if not number:
@@ -673,6 +705,9 @@ def go_forward(set_commands, result_text):
 # Пока распознается только время или в секундах, или в минутах, или в часах.
 # То есть время 2 минуты 6 секунд будет распознано как 8 секунд
 def go_back(set_commands, result_text):
+    global media_list_player
+    global media_list
+
     number = get_number(set_commands, result_text)
 
     if not number:
@@ -818,6 +853,9 @@ def bye():
 
 def main():
     global current_playlis
+    global media_list_player
+    global media_list
+
     record_seconds = 2
 
     say_text(word.PROGRAM_IS_RUNNING)
