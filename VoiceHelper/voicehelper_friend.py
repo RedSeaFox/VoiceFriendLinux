@@ -127,13 +127,22 @@ def read_statuses_from_track():
     media_player = media_list_player.get_media_player()
     # Получаем позицию в текущем треке
     position_in_media = media_player.get_position()
-    print('media_player.get_position() = ', position_in_media)
+    print('read_statuses_from_track() => media_player.get_position() = ', position_in_media)
 
     med = media_player.get_media()
+    print('media_list_player.get_state() = ', media_list_player.get_state())
     # Получаем индекс текущего трека в плейлисте
+    # *************************
+    # media_list_player.pause()
+    # ******************************
+    # media_list.lock()
     index_of_media = media_list.index_of_item(med)
-    print('index_of_media', index_of_media)
+    # media_list.unlock()
+    print('read_statuses_from_track() => index_of_media', index_of_media)
 
+    # *************************
+    # media_list_player.pause()
+    # ******************************
     # Получаем имя текущего плейлиста
     mrl = med.get_mrl()
     decoded_mrl = unquote(mrl)
@@ -176,8 +185,15 @@ def save_current_status():
     loaded_data["current_playlist"] = current_playlist
 
     current_playlist_name = statuses["current_playlist_name"]
-    track_info = {"current_track_index": statuses["current_track_index"],
-                  "current_track_position": statuses["current_track_position"]}
+    current_track_position = statuses["current_track_position"]
+
+    current_track_index = statuses["current_track_index"]
+    if current_track_index < 0:
+        current_track_index = 0
+        current_track_position = 0
+
+    track_info = {"current_track_index": current_track_index,
+                  "current_track_position": current_track_position}
     loaded_data[current_playlist_name] = track_info
 
     print('loaded_data в файл: ', loaded_data)
@@ -214,6 +230,7 @@ def set_playlist(set_commands, result_text):
     playlist_for_play = set_of_playlist & set_commands
 
     if len(playlist_for_play) == 0:
+        save_current_status()
         # Если названый плейлист не найден в списке плейлистов, то перечисляем все плейлисты, которые есть
         say_text(word.USER_NAME + word.ALL_PLAYLIST_1)
         time.sleep(2)
@@ -309,6 +326,7 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         time.sleep(2)
         media_list_player.pause()
 
+    #  Если Stopped
     elif media_list_player.get_state() == vlc.State(5) :
         # Получаем название каталога с плейлистами из домашней папки
         dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
@@ -329,6 +347,7 @@ def play_vlc(playlist_for_play='Программа.m3u'):
 
         media_list_player.set_media_list(media_list)
 
+        print('State(5) ')
         media_list_player.play()
 
     else:
@@ -338,6 +357,10 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         # Плейлисты будут хранится в /home/seafox/VoiceFriend_PlayLists/
 
         statuses = read_statuses_from_file()
+        current_playlist_name = Path(statuses["current_playlist"]).stem
+        say_text(word.USER_NAME + word.START_ON_PLAYLIST + current_playlist_name)
+        time.sleep(2)
+
         playlist_list = load_playlist(statuses["current_playlist"])
 
         len_playlist = len(playlist_list)
@@ -348,6 +371,7 @@ def play_vlc(playlist_for_play='Программа.m3u'):
             return
 
         media_list = vlc_instance.media_list_new()
+
 
         for song in playlist_list:
             media_list.add_media(song.rstrip())
@@ -361,6 +385,18 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         media_player = media_list_player.get_media_player()
         media_player.set_position(statuses["current_track_position"])
 
+        # ***********************
+        # current_playlist = statuses["current_playlist"]
+        # dir_name_track = Path(current_playlist)
+        # dir_track = dir_name_track.parent
+        # current_playlist_name = dir_track.stem
+        # current_playlist_name = Path(statuses["current_playlist"]).stem
+
+        # *******************
+
+        # say_text(word.USER_NAME + word.START_ON_PLAYLIST + current_playlist_name)
+        # time.sleep(2)
+        print('State else')
         media_list_player.play()
 
         # Текщую позицию при сохранении получаем так
@@ -692,7 +728,7 @@ def execute_command(commands_to_execute, set_commands, result_text):
     if not commands_to_execute:
         say_text(word.USER_NAME + word.NO_COMMAND)
         print('execute_command():', word.NO_COMMAND)
-        save_current_status()
+        # save_current_status()
     elif not commands_to_execute.isdisjoint(word.SET_PLAY):
         # say_text(word.USER_NAME + word.PLAYER_START)
         # print('execute_command(): ', word.PLAYER_START)
@@ -796,7 +832,7 @@ def main():
             result_text = rec.PartialResult()
 
             print('\n')
-            print('main(): result_text: ', result_text.replace("\n", ""), end='\n')
+            print('main() => result_text: ', result_text.replace("\n", ""), end='\n')
 
             if word.FRIEND in result_text:
                 # В строке "друг" может быть в словах "вдруг", "другой" и проч.
@@ -814,17 +850,24 @@ def main():
             print('media_list_player.get_state() = ', media_list_player.get_state())
             media_player = media_list_player.get_media_player()
             n = media_player.get_position()
-            print('media_player.get_position() = ', n)
-            nn = media_player.audio_get_track()
-            print('media_player.audio_get_track()', nn)
+            print('main() =>  media_player.get_position() = ', n)
 
-            print('audio_get_track_description = ', media_player.audio_get_track_description())
+            med = media_player.get_media()
+            # Получаем индекс текущего трека в плейлисте
+            index_of_media = media_list.index_of_item(med)
+            print('main() => index_of_media', index_of_media)
 
-            if not media_list_player.get_state() == vlc.State(0):
-                med = media_player.get_media()
-                # можно получить имя трека
-                print('med.get_mrl() = ', med.get_mrl())
-                # MediaList.index_of_item
+
+            # nn = media_player.audio_get_track()
+            # print('media_player.audio_get_track()', nn)
+
+            # print('audio_get_track_description = ', media_player.audio_get_track_description())
+
+            # if not media_list_player.get_state() == vlc.State(0):
+            #     med = media_player.get_media()
+            #     # можно получить имя трека
+            #     print('med.get_mrl() = ', med.get_mrl())
+            #     # MediaList.index_of_item
 
 
             # vlc.State(6) (Ended) может быть или если список закончился или если файл не воспроизводится (не медиа формат)
@@ -834,6 +877,9 @@ def main():
                 # Если воспроизведение еще не началось, то это не медиа файл
                 if media_player.get_position() == 0:
                     media_list_player.next()
+                elif media_player.get_position() == 1:
+                    # плейлист закончился, начинаем его сначала
+                    media_list_player.play_item_at_index(0)
 
                 # Можно получить текущий воспроизводимый файл
                 # med = media_player.get_media()
