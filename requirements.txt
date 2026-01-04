@@ -10,9 +10,6 @@ python-vlc==3.0.21203
 pyttsx==1.1
 pyttsx3==2.98
 requests==2.32.4
-rhvoice-wrapper==0.8.0
-rhvoice-wrapper-bin==0.5.0
-rhvoice-wrapper-data==0.5.0
 SCons==4.9.1
 sounddevice==0.5.2
 srt==3.5.3
