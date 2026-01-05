@@ -140,6 +140,12 @@ def read_statuses_from_track():
     # ******************************
     # media_list.lock()
     index_of_media = media_list.index_of_item(med)
+    if index_of_media == -1:
+        # При первом старте, когда еще не был запущен ни один трек, сохранять нечего, поэтому statuses пустой
+        statuses = {}
+        return statuses
+
+
     # media_list.unlock()
     print('read_statuses_from_track() => index_of_media', index_of_media)
 
@@ -171,6 +177,10 @@ def save_current_status():
 
     # Получаем данные закрываемого плейлиста (который сейчас сменим на новый плейлист)
     statuses = read_statuses_from_track()
+
+    if not statuses:
+        # При первом старте, когда еще не был запущен ни один трек, сохранять нечего, поэтому statuses пустой
+        return
 
     # Считываем данные из json файла в loaded_data, добавляем в loaded_data данные закрываемого плейлиста
     # и записываем loaded_data опять в json файл
