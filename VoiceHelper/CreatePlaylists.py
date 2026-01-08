@@ -14,38 +14,42 @@ def create_playlist(name_path):
         os.makedirs(dir_playlist)
 
     name_playlist_mix = 'микс'
+    new_playlist = list()
 
     # Сначала создаем плейлисты по вложенным каталогам
     subdir = [entry for entry in os.scandir(name_path) if entry.is_dir()]
     for d in subdir:
         # Сначала провери, вохможно плейлист с таким именем уже существует, тогда добавим к имени создаваемого плейлиста дату
-        # os.path.isfile(dir_playlist + '/' + d.name)
         name_playlist = dir_playlist + '/' + d.name + '.m3u'
         if os.path.isfile(name_playlist):
-            print('Плейлист', name_playlist, 'уже существует в каталоге', dir_playlist, ', поэтому')
-            name_playlist = name_playlist + datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
-            print('в каталоге ', dir_playlist, 'будет создан плейлист ', name_playlist)
+            name_playlist = dir_playlist + '/' + d.name + '_' + datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + '.m3u'
 
         files = [entry for entry in os.scandir(d.path) if entry.is_file()]
         # playlist_file = open(name_playlist, 'w')
         with open(name_playlist, 'w') as playlist_file:
             for f in files:
-                # n = f.name
-                # # f.name.endswith('.mp4')
-                # f.stat()
-                # os.path.splitext(f)[1]
                 if os.path.splitext(f)[1] in type_media:
                     playlist_file.write(f.path + '\n')
-                    # print('Добавим', f.name, 'в плейлист', d.name)
+
+        new_playlist.append(name_playlist)
 
     # Если в каталоге с медиа есть файлы не только в подкаталогах, но и в корне, то для них тоже создаем плейлист
     files = [entry for entry in os.scandir(name_path) if entry.is_file()]
-    name_playlist_mix_full = dir_playlist + '/' + name_playlist_mix + '.m3u'
-    # playlist_file = open(name_playlist, 'w')
-    with open(name_playlist_mix, 'w') as playlist_file:
-        for f in files:
-            if os.path.splitext(f)[1] in type_media:
-                playlist_file.write(f.path + '\n')
+    if len(files) > 0:
+        name_playlist = dir_playlist + '/' + name_playlist_mix + '.m3u'
+        if os.path.isfile(name_playlist):
+            name_playlist = dir_playlist + '/' + name_playlist_mix  + '_' + datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + '.m3u'
+        with open(name_playlist, 'w') as playlist_file:
+            for f in files:
+                if os.path.splitext(f)[1] in type_media:
+                    playlist_file.write(f.path + '\n')
+
+        new_playlist.append(name_playlist)
+
+    print()
+    print('В каталоге ', name_dir_playlist, 'созданы плейлисты:')
+    for s in new_playlist:
+        print(s)
 
 
 print('Этот скрипт создает плейлисты и записывает их в каталог', name_dir_playlist)
@@ -53,7 +57,9 @@ print('Вам будет предложено указать каталог в �
 print('Если в этом каталоге нет вложенных каталогов, то будет создан один плейлист с названием микс')
 print('Если в указанном вами каталоге есть вложенные каталоги, то для каждого вложенного каталога будет создан плейлист ')
 print('с названием, как у этого вложенного каталога и с аудиофайлами из этого вложенного каталога.')
-print('Название плейлиста должно состоять из одного слова')
+print('Если в каталоге', name_dir_playlist, 'уже существуют плейлисты с именами совпадающими с создаваемыми, то')
+print('к именам создаваемых плейлистов будет добавлено время')
+print('Для того чтобы использовать плейлисты в программе VoiceFriendLinux, название плейлиста должно состоять из одного слова')
 print('Вы можете сразу дать имена вложенным каталогам из одного слова, или переименовать плейлисты после создания', end="\n\n")
 
 s = {'q','Q', 'й', 'Й'}
