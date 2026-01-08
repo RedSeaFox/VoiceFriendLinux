@@ -6,7 +6,7 @@ name_dir_playlist = 'VoiceFriend_PlayLists'
 def create_playlist(name_path):
     type_media = {'.mp3','.MP3', '.mp4', '.MP4', '.webm', '.WEBM','.wmv', '.WMF', '.mmg','.MPG', '.mp2', '.MP2','.rm',
                   '.RM','.m4a', 'M4A','.ra', 'RA', '.wav','.WAV', '.avi', '.AVI','.flv', '.FLV','.3MP','.wma', '.WMA'}
-    # Имя каталога с плейлистамиAdd 
+    # Имя каталога с плейлистамиAdd
     dir_home = os.path.expanduser("~")
     # Каталог с плейлистами должен находится в домашнем каталоге
     dir_playlist = dir_home + '/' + name_dir_playlist
@@ -40,6 +40,7 @@ def create_playlist(name_path):
 
     # Если в каталоге с медиа есть файлы не только в подкаталогах, но и в корне, то для них тоже создаем плейлист
     files = [entry for entry in os.scandir(name_path) if entry.is_file()]
+    name_playlist_mix_full = dir_playlist + '/' + name_playlist_mix + '.m3u'
     # playlist_file = open(name_playlist, 'w')
     with open(name_playlist_mix, 'w') as playlist_file:
         for f in files:
