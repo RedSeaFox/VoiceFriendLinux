@@ -353,7 +353,7 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         time.sleep(2)
         media_list_player.pause()
 
-    #  Если Stopped происходит только когда сказали список и название списка
+    #  Stopped происходит только когда сказали список и название списка
     elif media_list_player.get_state() == vlc.State(5) :
         say_text(word.USER_NAME + word.START_ON_PLAYLIST + playlist_for_play)
         print('play_vlc() => elif - State(5) Stopped')
