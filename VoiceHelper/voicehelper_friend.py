@@ -102,18 +102,26 @@ def read_statuses_from_file():
             print('read_statuses_from_file() =>  current_track_index = ',current_track_index, '  current_track_position = ', current_track_position)
     except FileNotFoundError:
         print("FileNotFoundError")
+        # Здесь и ниже current_playlist = word.PlAYLIST_BY_DEFAULT используется в play_vlc, когда не удалось прочитать
+        # статусы из CurrentStatus
         current_playlist = word.PlAYLIST_BY_DEFAULT
         current_track_index = 0
         current_track_position = 0
-        # print('Чтение json. Файл не найден или поврежден. Берем значения по умолчанию')
     except json.JSONDecodeError:
         print('JSONDecodeError')
         current_playlist = word.PlAYLIST_BY_DEFAULT
         current_track_index = 0
         current_track_position = 0
+        # Возможно если json поломан, то лучше удалить CurrentStatus to do
     except Exception as e:
         # Другие возможные ошибки при работе с файлом
         print(f"Произошла другая ошибка: {e}")
+        print('JSONDecodeError')
+        # Не уверена, что так правильно
+        current_playlist = word.PlAYLIST_BY_DEFAULT
+        current_track_index = 0
+        current_track_position = 0
+        # Возможно если ничего не получается, надо удалить CurrentStatus? to do
 
     statuses = {"current_playlist": current_playlist, "current_track_index": current_track_index,
                 "current_track_position": current_track_position}
@@ -327,6 +335,36 @@ def load_playlist(playlist_name: str):
 
     return playlist_list
 
+def choose_playlst():
+    # Повтор кода из set_playlist. to do ?
+    dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
+    # Проверяем есть ли такой каталог
+    if not os.path.isdir(dir_playlst):
+        print('Нет каталога с плейлистами. Сообщаем пользователю.')
+        say_text(word.DIR_PLAYLIST_NO)
+        # Может быть сюда вставить загрузку плейлиста по умолчанию? to do
+        # return
+
+    # Если каталог есть, то получаем в список все названия файлов из этого каталога
+    list_of_file = os.listdir(dir_playlst)
+    print('set_playlist() => Каталог с плейлистами есть.Список файлов')
+    print(list_of_file)
+
+    set_of_playlist = set()
+    for file in list_of_file:
+        if file.endswith('.m3u'):
+            name_playlist = file[:-4]
+            set_of_playlist.add(name_playlist)
+
+    say_text(word.USER_NAME + word.ALL_PLAYLIST_3)
+    time.sleep(2)
+    for name in set_of_playlist:
+        say_text(os.path.splitext(os.path.basename(name))[0])
+        time.sleep(0.05)
+        # Это чтобы паузы были между названиями
+
+    # И предлагаем выбрать один из них
+    say_text(word.USER_NAME + word.ALL_PLAYLIST_2)
 
 def play_vlc(playlist_for_play='Программа.m3u'):
     global len_playlist
@@ -434,22 +472,29 @@ def play_vlc(playlist_for_play='Программа.m3u'):
 
         print('play_vlc() => State(5) ')
         media_list_player.play()
-
     else:
         # Все остальные статусы, в том числе
+        # State.NothingSpecial = State(0) - когда программа только запущена, но плеер еще не запускали
         # State.Ended = State(6) - когда плейлист закончился
         # State.Error = State(7)
-        # State.NothingSpecial = State(0) - когда программа только запущена, но плеер еще не запускали
         # State.Opening = State(1) - при открытии файла
         # State.Playing = State(3)
         # to do Переделать только на статус Opening?
-        # Пока знаю, что сюда попадаю при первом запуске плеера.
         #
         # Создаем новый плейлист и загружаем в него список
         # Плейлист из файла загружаем в список (список, а не кортеж, т.к. планируется добавление в плейлист?)
         # Плейлисты будут хранится в /home/seafox/VoiceFriend_PlayLists/
         print('play_vlc() => else - State(1, 6 etc) - Ended, Opening etc ')
         statuses = read_statuses_from_file()
+
+        # При любой проблеме с чтением файла CurrentStatus в read_statuses_from_file
+        # current_playlist присваивается значение word.PlAYLIST_BY_DEFAULT
+        # В таком случае предлагаем выбрать новй плейлист
+        # То есть используем current_playlist==word.PlAYLIST_BY_DEFAULT как признак для того чтобы предложить выбрать плейлист
+        if statuses["current_playlist"]==word.PlAYLIST_BY_DEFAULT:
+            choose_playlst()
+            return
+
         current_playlist_name = Path(statuses["current_playlist"]).stem
         print('play_vlc() => current_playlist_name = ', current_playlist_name)
         say_text(word.USER_NAME + word.START_ON_PLAYLIST + current_playlist_name)
@@ -933,7 +978,7 @@ def main():
 
     record_seconds = 2
 
-    say_text(word.PROGRAM_IS_RUNNING)
+    # say_text(word.PROGRAM_IS_RUNNING)
 
     try:
         listen = True

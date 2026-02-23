@@ -42,7 +42,7 @@ You can also change the words used to invoke commands here.
 
 Так же здесь можно изменить слова, которыми вызываются команды.
 """
-
+import os.path
 from vosk import Model
 
 if LANGUAGE == 'en':
@@ -167,7 +167,10 @@ if LANGUAGE == 'en':
     MESSAGE_MAX_NUMBER = ', I can only work with numbers no more than 20,000'
 
 elif LANGUAGE == 'ru':
-    MODEL_VOSK = Model("vosk_model_small_ru")
+    dir_home = os.path.expanduser("~")
+    dir_model_vosk = dir_home + '/VoiceFriendLinux/VoiceHelper/vosk_model_small_ru/'
+    MODEL_VOSK = Model(dir_model_vosk)
+
 
     # Каталог с плейлистами
     DIR_PLAYLIST = 'VoiceFriend_PlayLists'
@@ -176,6 +179,7 @@ elif LANGUAGE == 'ru':
 
     ALL_PLAYLIST_1 = (', я не услышал название плейлиста. Плейлисты которые ты можешь запустить.')
     ALL_PLAYLIST_2 =  ('Выбери один из перечисленных плейлистов.')
+    ALL_PLAYLIST_3 = ('Не выбран ни один плейлист. Плейлисты которые ты можешь выбрать.')
     # SAY_NAME_PLAYLIST = ', скажи название плейлиста'
     # RUN_PLAYLIST = ', запускаю плейлист'
 
