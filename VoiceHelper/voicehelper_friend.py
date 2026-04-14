@@ -1,30 +1,38 @@
 import os.path
-# import pathlib
 from pathlib import Path
 from urllib.parse import unquote
 import time
+import  datetime
 import json
+
 # Нужен микрофон. Для этого можно использовать pyaudio.
 # Можно использовать SpeechRecognition, который все равно использует pyaudio.
-# PyAudio предоставляет Python связь с PortAudio v19 (кроссплатформенной библиотекой ввода-вывода аудио)
 # https://people.csail.mit.edu/hubert/pyaudio/docs/
 # https://people.csail.mit.edu/hubert/pyaudio/
+# PyAudio - это библиотека Python для работы со звуком в реальном времени - то есть для записи, воспроизведения и обработки аудиопотоков.
+# PyAudio предоставляет Python связь с PortAudio v19 (кроссплатформенной библиотекой ввода-вывода аудио).
+# По сути, это оболочка кроссплатформенной аудиотеки PortAudio, упрощающая обработку звука в программах на Python.
+# Основные функции, которые можно выполнять с помощью PyAudio:
+# 1. Запись звука (вход для микрофона)
+# 2. Воспроизведение звука (выход через динамик)
+# 3. Обработка аудио в реальном времени
+# 4. Приложения для потоковой передачи аудио
 import pyaudio
-# Linux +
+
+# Для распознавания речи используем vosk - автономный API распознавания речи
+from vosk import KaldiRecognizer
+
 # Были сообщения от ALSA типа "ALSA lib pcm_dmix.c:999:(snd_pcm_dmix_open) unable to open slave"
 # и "jack server is not running or cannot be started"
 # Помогло решение отсюда https://stackoverflow.com/questions/65079325/problem-with-alsa-in-speech-recognitionpython-3
 # Хотя явно sounddevice нигде не используется, но import sounddevice помогает
 import sounddevice
-# Linux -
-# Для распознавания речи используем vosk - автономный API распознавания речи
-from vosk import KaldiRecognizer
-# Для преобразования текста в речь (для ответов друга) используем pyttsx3
-# import pyttsx3
-# Linux +
-# В Linux используем speechd
+
+# Для преобразования текста в речь (для ответов друга) в Linux используем speechd
 import speechd
-# Linux -
+# В windows использовали pyttsx3
+# import pyttsx3
+
 # Для воспроизведения аудио файлов будем использовать vlc
 import vlc
 
@@ -36,8 +44,8 @@ CHUNK = 8000  # кол-во фреймов за один "запрос" к ми�
 FORMAT = pyaudio.paInt16  # глубина звука = 16 бит = 2 байта
 
 # Для Windows использовала pyttsx3
-# Для Linux  rhvoice с speechd
 # engine = pyttsx3.init()
+# Для Linux  rhvoice с speechd
 client = speechd.SSIPClient('friends_voice')
 client.set_output_module('rhvoice')
 client.set_language('ru')
@@ -75,7 +83,6 @@ def read_statuses_from_file():
             print('read_statuses_from_file() => json файл считан')
             # Получаем последний плейлист
             current_playlist = loaded_data.get("current_playlist", word.PlAYLIST_BY_DEFAULT)
-            # current_playlist = loaded_data.get("current_playlist", word.PlAYLIST_BY_DEFAULT)
             print('read_statuses_from_file() => current_playlist = ', current_playlist)
             # Получаем последний трек
             if current_playlist == word.PlAYLIST_BY_DEFAULT:
@@ -878,6 +885,30 @@ def go_back(set_commands, result_text):
     else:
         say_text(word.USER_NAME + word.MEASURE_UNDEFINED)
 
+def get_value(key, name_list, name_dict):
+    part_day = ''
+
+    for item in name_list:
+        if key in item:
+            ind = name_list.index(item)
+            part_day = name_dict.get(ind,'')
+            break
+
+    return part_day
+
+def say_time():
+    hour = datetime.datetime.now().hour
+    hour_pm = hour if hour < 13 else hour - 12
+    minute = datetime.datetime.now().minute
+
+    minute_text = word.MINUTE_BY_WORD.get(minute, '') + ' ' + get_value(minute, word.LIST_MINUTE, word.NAME_MINUTE)
+
+    # Время в формате pm
+    hour_pm_text = word.HOUR_BY_WORD.get(hour_pm, '') + ' ' + get_value(hour_pm, word.LIST_HOUR,                                                                         word.NAME_HOUR) + ' ' + \
+                       get_value(hour, word.LIST_PART_DAY, word.NAME_PART_DAY) + ' '
+
+    say_text(hour_pm_text + minute_text)
+
 
 def execute_command(commands_to_execute, set_commands, result_text):
     if not commands_to_execute:
@@ -921,6 +952,16 @@ def execute_command(commands_to_execute, set_commands, result_text):
         commands_to_execute -= word.SET_SEARCH
         print('execute_command(): ', word.PLAYER_SEARCH)
         say_text(word.USER_NAME + word.PLAYER_SEARCH + ' '.join(commands_to_execute))
+
+# 09/03/26 +
+    elif not commands_to_execute.isdisjoint(word.SET_TIME):
+        commands_to_execute -= word.SET_TIME
+        # print('execute_command(): ', word.SET_TIME)
+        say_time()
+
+
+# 09/03/26 -
+
     elif not commands_to_execute.isdisjoint(word.SET_BYE):
         commands_to_execute -= word.SET_BYE
         print('execute_command(): ', word.BYE)
@@ -983,6 +1024,33 @@ def main():
     try:
         listen = True
         while listen:
+
+            # 09/03/26 +
+            # Надо выключить в назначенное время
+            current_hour = datetime.datetime.now().hour
+            print('current_hour = ', current_hour)
+            print('word.TIME_TO_BYE = ', word.TIME_TO_BYE)
+            if current_hour > word.TIME_TO_BYE:
+                print('Пора спать!')
+                # Ставим плеер на паузу, если он включен
+                if media_list_player.is_playing():
+                    print('Плеер играет')
+                    # media_list_player.pause()
+                    media_list_player.stop()
+                    print('Плеер остановлен')
+
+
+                    # say_text(word.USER_NAME + word.TIME_TO_BYE_1 + word.BYE)
+                    say_text(word.USER_NAME + ' ' +  word.SAY_TO_BYE_1)
+                    say_time()
+                    say_text(word.SAY_TO_BYE_2)
+
+                print('bye')
+                bye()
+
+            # 09/03/26 +
+
+
             for _ in range(0, RATE // CHUNK * record_seconds):
                 data = stream.read(CHUNK)
                 rec.AcceptWaveform(data)
@@ -1005,28 +1073,27 @@ def main():
                     print('main(): The word friend has been discovered. set_commands=', set_commands, ', Running process_text_main')
                     process_text_main(set_commands, result_text)
 
-            print('media_list_player.get_state() = ', media_list_player.get_state())
-            media_player = media_list_player.get_media_player()
-            n = media_player.get_position()
-            print('main() =>  media_player.get_position() = ', n)
-
-            med = media_player.get_media()
-            # Получаем индекс текущего трека в плейлисте
-            index_of_media = media_list.index_of_item(med)
-            print('main() => index_of_media', index_of_media)
-
-
+            # print('media_list_player.get_state() = ', media_list_player.get_state())
+            # 09/03/26 +
+            # n = media_player.get_position()
+            # print('main() =>  media_player.get_position() = ', n)
+            # 09/03/26 -
+            # 09/03/26 +
+            # med = media_player.get_media()
+            # # Получаем индекс текущего трека в плейлисте
+            # index_of_media = media_list.index_of_item(med)
+            # print('main() => index_of_media', index_of_media)
+            # 09/03/26 -
             # nn = media_player.audio_get_track()
             # print('media_player.audio_get_track()', nn)
-
             # print('audio_get_track_description = ', media_player.audio_get_track_description())
-
             # if not media_list_player.get_state() == vlc.State(0):
             #     med = media_player.get_media()
             #     # можно получить имя трека
             #     print('med.get_mrl() = ', med.get_mrl())
             #     # MediaList.index_of_item
 
+            media_player = media_list_player.get_media_player()
 
             # vlc.State(6) (Ended) может быть или если список закончился или если файл не воспроизводится (не медиа формат)
             if media_list_player.get_state() == vlc.State(6):
@@ -1051,7 +1118,7 @@ def main():
                 # b5=med.get_state()
                 # b6=med.get_type()
 
-            print('main(): media_list_player.get_state()', media_list_player.get_state())
+            # print('main(): media_list_player.get_state()', media_list_player.get_state())
 
             rec.Reset()
             stream.stop_stream()
