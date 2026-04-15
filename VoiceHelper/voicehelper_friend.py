@@ -11,7 +11,7 @@ import json
 # https://people.csail.mit.edu/hubert/pyaudio/
 # PyAudio - это библиотека Python для работы со звуком в реальном времени - то есть для записи, воспроизведения и обработки аудиопотоков.
 # PyAudio предоставляет Python связь с PortAudio v19 (кроссплатформенной библиотекой ввода-вывода аудио).
-# По сути, это оболочка кроссплатформенной аудиотеки PortAudio, упрощающая обработку звука в программах на Python.
+# По сути PyAudio оболочка PortAudio, упрощающая обработку звука в программах на Python.
 # Основные функции, которые можно выполнять с помощью PyAudio:
 # 1. Запись звука (вход для микрофона)
 # 2. Воспроизведение звука (выход через динамик)
@@ -28,30 +28,31 @@ from vosk import KaldiRecognizer
 # Хотя явно sounddevice нигде не используется, но import sounddevice помогает
 import sounddevice
 
-# Для преобразования текста в речь (для ответов друга) в Linux используем speechd
+# Для преобразования текста в речь (для ответов друга) в Linux используем speechd (диспетчер речи).
+# speechd управляет синтезом речи в системе.
+# Когда говорят несколько программ, speechd решает кто будет говорить первым, кого прервать, какую громкость приоритет дать.
+# speechd принимает текст, передает нужному движку (в нашем случае rhvoice), управляет воспроизведением.
 import speechd
-# В windows использовали pyttsx3
-# import pyttsx3
+# В windows использовали pyttsx3: import pyttsx3
 
 # Для воспроизведения аудио файлов будем использовать vlc
 import vlc
 
+# Подключаем настройки и значения по умолчанию
 import voicehelper_friend_config as word
 
-CHANNELS = 1  # моно
-RATE = 16000  # частота дискретизации - кол-во фреймов в секунду
-CHUNK = 8000  # кол-во фреймов за один "запрос" к микрофону - тк читаем по кусочкам
-FORMAT = pyaudio.paInt16  # глубина звука = 16 бит = 2 байта
-
-# Для Windows использовала pyttsx3
-# engine = pyttsx3.init()
-# Для Linux  rhvoice с speechd
+# Настраивем синтез речи через Speech Dispatcher (speechd) и говорим системе в качестве движка использовать rhvoice
+# (то есть текст будет говориться голосом RHVoice)
 client = speechd.SSIPClient('friends_voice')
 client.set_output_module('rhvoice')
 client.set_language('ru')
 client.set_rate(15)
 client.set_punctuation(speechd.PunctuationMode.SOME)
 
+CHANNELS = 1  # моно
+RATE = 16000  # частота дискретизации - кол-во фреймов в секунду
+CHUNK = 8000  # кол-во фреймов за один "запрос" к микрофону - тк читаем по кусочкам
+FORMAT = pyaudio.paInt16  # глубина звука = 16 бит = 2 байта
 
 # Чтобы использовать PyAudio, сначала создаем экземпляр PyAudio, который получит
 # системные ресурсы для PortAudio (короче подключаемся к микрофону)
@@ -904,7 +905,7 @@ def say_time():
     minute_text = word.MINUTE_BY_WORD.get(minute, '') + ' ' + get_value(minute, word.LIST_MINUTE, word.NAME_MINUTE)
 
     # Время в формате pm
-    hour_pm_text = word.HOUR_BY_WORD.get(hour_pm, '') + ' ' + get_value(hour_pm, word.LIST_HOUR,                                                                         word.NAME_HOUR) + ' ' + \
+    hour_pm_text = word.HOUR_BY_WORD.get(hour_pm, '') + ' ' + get_value(hour_pm, word.LIST_HOUR, word.NAME_HOUR) + ' ' + \
                        get_value(hour, word.LIST_PART_DAY, word.NAME_PART_DAY) + ' '
 
     say_text(hour_pm_text + minute_text)

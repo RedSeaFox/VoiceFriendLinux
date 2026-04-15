@@ -13,14 +13,21 @@ The default username is Lucy.
 Настройка программы. (ru)
 
 Эта область настраивается пользователем.
-Здесь надо выбрать язык на котором будет работать программа (в настоящий момент только русский и английский).
+Здесь надо:
+1. Выбрать язык на котором будет работать программа (в настоящий момент только русский и английский).
 Для русского: LANGUAGE = 'ru'
 Для английского: LANGUAGE = 'en'
 По умолчанию установлен русский язык
 
-Ввести имя пользователя который будет работать с программой.
+2. Ввести имя пользователя который будет работать с программой.
 USER_NAME = 'Люся'
 По умолчанию имя пользователя Люся
+
+3. Ввести время выключения программы TIME_TO_BYE
+Подразумевается, что комп выключается и включается посредством ОС.
+Программу надо выключать на случай, если в момент выключения компа программа еще работает.
+В таком случае надо до выключения компа сохранить текущий плейлист, трек и позицию в треке.
+
 """
 
 LANGUAGE = 'ru'
@@ -47,6 +54,9 @@ import os.path
 from vosk import Model
 
 if LANGUAGE == 'en':
+    # At the moment, work in English is not configured.
+    # For English on Linux, the speech synthesizer does not need to be configured, the built-in synthesizer is sufficient.
+
     MODEL_VOSK = Model("vosk_model_small_en")
 
     # The word is a beacon. The program uses it to determine that the user is accessing the program.
@@ -171,7 +181,6 @@ elif LANGUAGE == 'ru':
     dir_home = os.path.expanduser("~")
     dir_model_vosk = dir_home + '/VoiceFriendLinux/VoiceHelper/vosk_model_small_ru/'
     MODEL_VOSK = Model(dir_model_vosk)
-
 
     # Каталог с плейлистами
     DIR_PLAYLIST = 'VoiceFriend_PlayLists'
