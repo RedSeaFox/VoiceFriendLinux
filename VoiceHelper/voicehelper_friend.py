@@ -28,12 +28,11 @@ from vosk import KaldiRecognizer
 # Хотя явно sounddevice нигде не используется, но import sounddevice помогает
 import sounddevice
 
-# Для преобразования текста в речь (для ответов друга) в Linux используем speechd (диспетчер речи).
+# Для преобразования текста в речь (для ответов друга) в Linux используем speechd (менеджер синтеза речи).
 # speechd управляет синтезом речи в системе.
 # Когда говорят несколько программ, speechd решает кто будет говорить первым, кого прервать, какую громкость приоритет дать.
 # speechd принимает текст, передает нужному движку (в нашем случае rhvoice), управляет воспроизведением.
 import speechd
-# В windows использовали pyttsx3: import pyttsx3
 
 # Для воспроизведения аудио файлов будем использовать vlc
 import vlc
@@ -41,7 +40,7 @@ import vlc
 # Подключаем настройки и значения по умолчанию
 import voicehelper_friend_config as word
 
-# Настраивем синтез речи через Speech Dispatcher (speechd) и говорим системе в качестве движка использовать rhvoice
+# Настраиваем синтез речи через Speech Dispatcher (speechd) и говорим системе в качестве движка использовать rhvoice
 # (то есть текст будет говориться голосом RHVoice)
 client = speechd.SSIPClient('friends_voice')
 client.set_output_module('rhvoice')
@@ -343,6 +342,7 @@ def load_playlist(playlist_name: str):
 
     return playlist_list
 
+
 def choose_playlst():
     # Повтор кода из set_playlist. to do ?
     dir_playlst = os.path.expanduser('~') + '/' + word.DIR_PLAYLIST
@@ -373,6 +373,7 @@ def choose_playlst():
 
     # И предлагаем выбрать один из них
     say_text(word.USER_NAME + word.ALL_PLAYLIST_2)
+
 
 def play_vlc(playlist_for_play='Программа.m3u'):
     global len_playlist
@@ -558,11 +559,7 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         # media_player.set_mrl('/home/seafox/VoiceFriend_Musik/Песни/ABBA - MONEY, MONEY, MONEY.mp3')
         # dev -
 
-#  Вариант с pyttsx3 (engine) использовала в Windows
-# def say_text(text):
-#     engine.say(text)
-#     engine.runAndWait()
-# Linux +
+
 def say_text(text):
     text_len = len(text)
     # time_len = text_len / 10 - 5
@@ -573,7 +570,7 @@ def say_text(text):
 
     if time_len > 0:
         time.sleep(time_len)
-# Linux -
+
 
 def result_by_words(result_text):
     result_text = result_text.replace("\n", "")
@@ -716,6 +713,7 @@ def get_number(set_commands, result_text):
         return 0
 
     return number
+
 
 # Переход к треку под указанным номером (например, "трек 3") или
 # к указанному времени (например 20 секунд) внутри трека
@@ -886,6 +884,7 @@ def go_back(set_commands, result_text):
     else:
         say_text(word.USER_NAME + word.MEASURE_UNDEFINED)
 
+
 def get_value(key, name_list, name_dict):
     part_day = ''
 
@@ -896,6 +895,7 @@ def get_value(key, name_list, name_dict):
             break
 
     return part_day
+
 
 def say_time():
     hour = datetime.datetime.now().hour
