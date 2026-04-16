@@ -55,7 +55,7 @@ from vosk import Model
 
 if LANGUAGE == 'en':
     # At the moment, work in English is not configured.
-    # For English on Linux, the speech synthesizer does not need to be configured, the built-in synthesizer is sufficient.
+    # It is not necessary to configure the speech synthesizer for English on Linux, the built-in synthesizer is sufficient?
 
     MODEL_VOSK = Model("vosk_model_small_en")
 
@@ -239,12 +239,11 @@ elif LANGUAGE == 'ru':
     SET_BYE = {'пока', 'до свидания', 'прощай'}
     SET_SEARCH = {'найди', 'ищи', 'поиск', 'найти'}
 
-    # 09/03/26 +
-    SET_TIME = {'время'}
-    # 09/03/26 +
+    SET_TIME = {'время', 'времени', 'час', 'часов', 'сейчас'}
+    SET_DAY = {'сегодня', 'день'}
 
     SET_ALL_COMMANDS = SET_PLAY | SET_SEARCH | SET_NEXT | SET_PREVIOUS | SET_FORWARD | SET_BACK | SET_BYE | SET_GOTO \
-                       | SET_PlAYLIST | SET_PlAYLISTS | SET_TIME
+                       | SET_PlAYLIST | SET_PlAYLISTS | SET_TIME | SET_DAY
     SET_MEASURE_TIME = SET_MEASURE_SECOND | SET_MEASURE_MINUTE | SET_MEASURE_HOUR
 
     SAY_COMMAND = ', скажи твою команду.'
@@ -289,6 +288,25 @@ elif LANGUAGE == 'ru':
     # FOR_TIME_PM = 'Или по другому можно сказать '
     FOR_TIME_PM = 'Или по другому'
     # FOR_TIME_PM = 'Это то же самое'
+
+    TODAY = 'Сегодня'
+
+    DAY_OF_WEEK = {
+        1: 'понедельник', 2: 'вторник', 3: 'среда', 4: 'четверг', 5: 'пятница', 6: 'суббота', 7: 'воскресенье',
+    }
+
+    DAY_OF_MONTH = {
+        1: 'первое', 2: 'второе', 3: 'третье', 4: 'четвертое', 5: 'пятое', 6: 'шестое', 7: 'седьмое', 8: 'восьмое',
+        9: 'девятое', 10: 'десятое', 11: 'одиннадцатое', 12: 'двенадцатое', 13: 'тринадцатое', 14: 'четырнадцатое',
+        15: 'пятнадцатое', 16: 'шестнадцатое', 17: 'семнадцатое', 18: 'восемнадцатое', 19: 'девятнадцатое',
+        20: 'двадцатое', 21: 'двадцать первое', 22: 'двадцать второе', 23: 'двадцать третье', 24: 'двадцать четвертое',
+        25: 'двадцать пятое', 26: 'двадцать шестое', 27: 'двадцать седьмое', 28: 'двадцать восьмое',
+        29: 'двадцать девятое', 30: 'тридцатое', 31: 'тридцать первое'
+    }
+
+    MONTH_NAME = {1: 'января', 2: 'февраля', 3: 'марта', 4: 'апреля', 5: ' мая', 6: 'июня',
+                  7: 'июля', 8: 'августа', 9: 'сентября', 10: 'октября', 11: 'ноября', 12: 'декабря'
+                  }
 
     MINUTE_BY_WORD = {
         0: 'ноль', 1: 'одна', 2: 'две', 3: 'три', 4: 'четыре', 5: 'пять', 6: 'шесть', 7: 'семь', 8: 'восемь', 9: 'девять',
@@ -347,6 +365,13 @@ elif LANGUAGE == 'ru':
         {12, 13, 14, 15, 16},
         {17, 18, 19, 20}
     ]
+
+    # NAME_PART_DAY = {
+    #     0: 'ночь',
+    #     1: 'утро',
+    #     2: 'день',
+    #     3: 'вечер'
+    # }
 
     NAME_PART_DAY = {
         0: 'ночи',

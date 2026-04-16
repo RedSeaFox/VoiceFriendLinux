@@ -1,9 +1,17 @@
 import os.path
+from calendar import month
 from pathlib import Path
 from urllib.parse import unquote
 import time
 import  datetime
 import json
+
+# Для работы программа должна:
+# 1. Слушать пользователя с микрофона и распозновать услышанное (переводить в текст)
+#       1.1 Для того, чтобы слушать с микрофона используется pyaudio.
+#       1.2 Для распознания услышанного используется KaldiRecognizer.
+# 2. Говорить (произносить текст (переводить текст в голос))
+#       2.1 Для перевода текста в голос используется менеджер синтеза речи speechd с движком rhvoice.
 
 # Нужен микрофон. Для этого можно использовать pyaudio.
 # Можно использовать SpeechRecognition, который все равно использует pyaudio.
@@ -34,7 +42,7 @@ import sounddevice
 # speechd принимает текст, передает нужному движку (в нашем случае rhvoice), управляет воспроизведением.
 import speechd
 
-# Для воспроизведения аудио файлов будем использовать vlc
+# Для воспроизведения медиа файлов будем использовать vlc
 import vlc
 
 # Подключаем настройки и значения по умолчанию
@@ -905,11 +913,25 @@ def say_time():
     minute_text = word.MINUTE_BY_WORD.get(minute, '') + ' ' + get_value(minute, word.LIST_MINUTE, word.NAME_MINUTE)
 
     # Время в формате pm
+    # hour_pm_text = (word.FOR_TIME_NOW + get_value(hour, word.LIST_PART_DAY, word.NAME_PART_DAY)  + '. ' +
+    #         word.HOUR_BY_WORD.get(hour_pm, '') + ' ' + get_value(hour_pm, word.LIST_HOUR, word.NAME_HOUR) + ' ')
     hour_pm_text = word.HOUR_BY_WORD.get(hour_pm, '') + ' ' + get_value(hour_pm, word.LIST_HOUR, word.NAME_HOUR) + ' ' + \
                        get_value(hour, word.LIST_PART_DAY, word.NAME_PART_DAY) + ' '
 
     say_text(hour_pm_text + minute_text)
 
+def say_day():
+    datetime_now = datetime.datetime.now()
+    weekday_now = datetime_now.isoweekday()
+    day_now = datetime_now.day
+    month_now = datetime_now.month
+
+    weekday_now_text = word.TODAY + ' ' + word.DAY_OF_WEEK.get(weekday_now, '')
+    day_now_text = word.DAY_OF_MONTH.get(day_now, '') + ' ' +word.MONTH_NAME.get(month_now)
+
+    say_text(weekday_now_text)
+    say_text(day_now_text)
+    # say_text(weekday_now_text + ' ' + day_now_text)
 
 def execute_command(commands_to_execute, set_commands, result_text):
     if not commands_to_execute:
@@ -953,15 +975,15 @@ def execute_command(commands_to_execute, set_commands, result_text):
         commands_to_execute -= word.SET_SEARCH
         print('execute_command(): ', word.PLAYER_SEARCH)
         say_text(word.USER_NAME + word.PLAYER_SEARCH + ' '.join(commands_to_execute))
-
-# 09/03/26 +
     elif not commands_to_execute.isdisjoint(word.SET_TIME):
         commands_to_execute -= word.SET_TIME
         # print('execute_command(): ', word.SET_TIME)
         say_time()
 
-
-# 09/03/26 -
+    elif not commands_to_execute.isdisjoint(word.SET_DAY):
+        commands_to_execute -= word.SET_DAY
+        # print('execute_command(): ', word.SET_TIME)
+        say_day()
 
     elif not commands_to_execute.isdisjoint(word.SET_BYE):
         commands_to_execute -= word.SET_BYE
