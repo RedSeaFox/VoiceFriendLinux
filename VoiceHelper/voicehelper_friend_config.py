@@ -32,6 +32,7 @@ USER_NAME = 'Люся'
 
 LANGUAGE = 'ru'
 USER_NAME = 'Люся'
+# USER_NAME = 'Л' + 'ю\u0301' + 'ся'
 TIME_TO_BYE = 22
 # LANGUAGE = 'en'
 # USER_NAME = 'Lucy'
@@ -179,6 +180,15 @@ if LANGUAGE == 'en':
 
 elif LANGUAGE == 'ru':
     dir_home = os.path.expanduser("~")
+
+    SAME_WRONG = 'Что-то пошло не так. Попробуй другую команду'
+
+    # FILE_INFO = 'ICanDo.txt'
+    FILE_INFO = 'ICanDo.json'
+    FILE_INFO_DIFFICULTY = ('Проблемы с файлом в котором описаны мои возможности. '
+                     'Надо проверить его расположение и формат. '
+                     'Программа не пострадала и может работать дальше.')
+
     dir_model_vosk = dir_home + '/VoiceFriendLinux/VoiceHelper/vosk_model_small_ru/'
     MODEL_VOSK = Model(dir_model_vosk)
 
@@ -201,13 +211,13 @@ elif LANGUAGE == 'ru':
     #
     # Слово - маячок. По нему программа определяет, что обратились к ней.
     FRIEND = 'друг'
+    SET_FRIEND = {'друг', 'дружок'}
 
     # PlAYLIST = ', включаю плейлист '
 
     # Для выбора плейлиста используем слово список.
-    SET_PlAYLISTS = {'списки', 'плейлисты'}
-
-    SET_PlAYLIST = {'список', 'плейлист'}
+    # SET_PlAYLISTS = {'списки', 'плейлисты'}
+    SET_PlAYLIST = {'список', 'плейлист', 'списки', 'плейлисты'}
 
     # Запустить плеер
     SET_PLAY = {'играй', 'играть', 'пой', 'петь'}
@@ -242,8 +252,10 @@ elif LANGUAGE == 'ru':
     SET_TIME = {'время', 'времени', 'час', 'часов', 'сейчас'}
     SET_DAY = {'сегодня', 'день'}
 
+    SET_I_CAN_DO = {'расскажи', 'что', 'умеешь', 'делать'}
+
     SET_ALL_COMMANDS = SET_PLAY | SET_SEARCH | SET_NEXT | SET_PREVIOUS | SET_FORWARD | SET_BACK | SET_BYE | SET_GOTO \
-                       | SET_PlAYLIST | SET_PlAYLISTS | SET_TIME | SET_DAY
+                       | SET_PlAYLIST | SET_TIME | SET_DAY | SET_I_CAN_DO
     SET_MEASURE_TIME = SET_MEASURE_SECOND | SET_MEASURE_MINUTE | SET_MEASURE_HOUR
 
     SAY_COMMAND = ', скажи твою команду.'
@@ -283,7 +295,9 @@ elif LANGUAGE == 'ru':
                                 По возможности сообщи разработчику морской лисе об этой ситуации'''
     BYE = '''Закрываю программу'''
     SAY_TO_BYE_1 = '''Сейчас уже '''
-    SAY_TO_BYE_2 = '''Пора спать. Программа выключается до утра. Спокойной ночи! '''
+    # SAY_TO_BYE_2 = '''Пора спать. Программа выключается до утра. Спокойной ночи! '''
+    # SAY_TO_BYE_2 = '''Пора спать. Программа выключается до утра́. Спокойной ночи! '''
+    SAY_TO_BYE_2 = 'Пора спать. Программа выключается до утр' + 'а\u0301' +  '́. Спокойной ночи! '
 
     # FOR_TIME_PM = 'Или по другому можно сказать '
     FOR_TIME_PM = 'Или по другому'
@@ -375,9 +389,11 @@ elif LANGUAGE == 'ru':
 
     NAME_PART_DAY = {
         0: 'ночи',
-        1: 'утра',
+        # 1: 'утра',
+        1: 'утр' + 'а\u0301',
         2: 'дня',
-        3: 'ве чера'
+        # 3: 'ве чера'
+        3: 'в' + 'е\u0301' +  '́чера'
     }
 
     All_NAME_NUMBER = {

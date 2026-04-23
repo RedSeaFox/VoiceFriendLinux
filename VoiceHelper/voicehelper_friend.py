@@ -7,7 +7,7 @@ import  datetime
 import json
 
 # Для работы программа должна:
-# 1. Слушать пользователя с микрофона и распозновать услышанное (переводить в текст)
+# 1. Слушать пользователя с микрофона и распознавать услышанное (переводить в текст)
 #       1.1 Для того, чтобы слушать с микрофона используется pyaudio.
 #       1.2 Для распознания услышанного используется KaldiRecognizer.
 # 2. Говорить (произносить текст (переводить текст в голос))
@@ -53,7 +53,8 @@ import voicehelper_friend_config as word
 client = speechd.SSIPClient('friends_voice')
 client.set_output_module('rhvoice')
 client.set_language('ru')
-client.set_rate(15)
+# client.set_rate(15)
+client.set_rate(10)
 client.set_punctuation(speechd.PunctuationMode.SOME)
 
 CHANNELS = 1  # моно
@@ -585,8 +586,6 @@ def choose_playlst():
 #endregion
 
 
-
-
 #region 'Переходы впред, назад, к'
 def play_next():
     global media_list_player
@@ -859,6 +858,7 @@ def go_back(set_commands, result_text):
         say_text(word.USER_NAME + word.MEASURE_UNDEFINED)
 #endregion
 
+
 #region 'Дата, время'
 def get_value(key, name_list, name_dict):
     part_day = ''
@@ -901,6 +901,44 @@ def say_day():
     say_text(day_now_text)
     # say_text(weekday_now_text + ' ' + day_now_text)
 #endregion
+
+
+def i_can_do():
+    name_file_info = word.FILE_INFO
+    is_err = False
+    text = ''
+
+    try:
+        # Пытаемся открыть файл
+        with open(name_file_info, 'r', encoding='utf-8') as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as e:
+                text = f'Ошибка: файл {name_file_info} содержит некорректный JSON'
+                is_err = True
+    except FileNotFoundError:
+        text = f'Ошибка: файл {name_file_info} не найден'
+        is_err = True
+    except Exception as e:
+        # Другие возможные ошибки при работе с файлом
+        text = f'Произошла другая ошибка при загрузке {name_file_info}'
+        is_err = True
+
+    if is_err:
+        print(text)
+        say_text(word.FILE_INFO_DIFFICULTY)
+        say_text(word.SAME_WRONG)
+        # print(word.FILE_INFO_DIFFICULTY)
+        exit()
+
+    # Перебираем и выводим
+    for key, value in data.items():
+        print(f"{key}: {value}")
+        # say_text(value)
+        client.speak(value)
+        time.sleep(1)
+
+
 
 
 def listen_to_user():
@@ -997,10 +1035,15 @@ def execute_command(commands_to_execute, set_commands, result_text):
         # print('execute_command(): ', word.SET_TIME)
         say_day()
 
+    elif not commands_to_execute.isdisjoint(word.SET_I_CAN_DO):
+        commands_to_execute -= word.SET_I_CAN_DO
+        # print('execute_command(): ', word.SET_TIME)
+        i_can_do()
+
     elif not commands_to_execute.isdisjoint(word.SET_BYE):
         commands_to_execute -= word.SET_BYE
         print('execute_command(): ', word.BYE)
-        say_text(word.USER_NAME + word.BYE)
+        say_text(word.USER_NAME + ', ' + word.BYE)
         bye()
     else:
         say_text(word.USER_NAME + word.EXCEPT)
@@ -1076,7 +1119,7 @@ def main():
 
 
                     # say_text(word.USER_NAME + word.TIME_TO_BYE_1 + word.BYE)
-                    say_text(word.USER_NAME + ' ' +  word.SAY_TO_BYE_1)
+                    say_text(word.USER_NAME + ', ' +  word.SAY_TO_BYE_1)
                     say_time()
                     say_text(word.SAY_TO_BYE_2)
 
@@ -1095,19 +1138,32 @@ def main():
             print('\n')
             print('main() => result_text: ', result_text.replace("\n", ""), end='\n')
 
-            if word.FRIEND in result_text:
-                # В строке "друг" может быть в словах "вдруг", "другой" и проч.
-                # Поэтому далее проверяем на точное соответствие слову друг
-                result_text = result_by_words(result_text)
-                set_commands = set(result_text)
-                if word.FRIEND in set_commands:
-                    # Как только услышали слово друг, плеер ставим на паузу, если он включен
-                    if media_list_player.is_playing():
-                        media_list_player.pause()
+            # 23/04/26 + Другой вариант обнаружить что обратились к другу (несколько названий друга
+            result_text = result_by_words(result_text)
+            set_commands = set(result_text)
+            if set_commands & word.SET_FRIEND:
+                if media_list_player.is_playing():
+                    media_list_player.pause()
 
-                    print('main(): The word friend has been discovered. set_commands=', set_commands, ', Running process_text_main')
-                    process_text_main(set_commands, result_text)
+                print('main(): The word friend has been discovered. set_commands=', set_commands,
+                      ', Running process_text_main')
+                process_text_main(set_commands, result_text)
+            # 23/04/26 -
 
+            # 23/04/26 + Старый вариант обнаружить что обратились к другу (одно название друга)
+            # if word.FRIEND in result_text:
+            #     # В строке "друг" может быть в словах "вдруг", "другой" и проч.
+            #     # Поэтому далее проверяем на точное соответствие слову друг
+            #     result_text = result_by_words(result_text)
+            #     set_commands = set(result_text)
+            #     if word.FRIEND in set_commands:
+            #         # Как только услышали слово друг, плеер ставим на паузу, если он включен
+            #         if media_list_player.is_playing():
+            #             media_list_player.pause()
+            #
+            #         print('main(): The word friend has been discovered. set_commands=', set_commands, ', Running process_text_main')
+            #         process_text_main(set_commands, result_text)
+            # 23/04/26 -
             # print('media_list_player.get_state() = ', media_list_player.get_state())
             # 09/03/26 +
             # n = media_player.get_position()
