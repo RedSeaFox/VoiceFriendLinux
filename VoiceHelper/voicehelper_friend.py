@@ -1,4 +1,5 @@
 import os.path
+import sys
 from calendar import month
 from pathlib import Path
 from urllib.parse import unquote
@@ -54,8 +55,9 @@ client = speechd.SSIPClient('friends_voice')
 client.set_output_module('rhvoice')
 client.set_language('ru')
 # client.set_rate(15)
-client.set_rate(10)
+client.set_rate(5)
 client.set_punctuation(speechd.PunctuationMode.SOME)
+
 
 CHANNELS = 1  # моно
 RATE = 16000  # частота дискретизации - кол-во фреймов в секунду
@@ -928,17 +930,41 @@ def i_can_do():
         print(text)
         say_text(word.FILE_INFO_DIFFICULTY)
         say_text(word.SAME_WRONG)
-        # print(word.FILE_INFO_DIFFICULTY)
-        exit()
+        return
 
-    # Перебираем и выводим
+    # Перебираем пары и озвучиваем значения
+    skip = False
     for key, value in data.items():
-        print(f"{key}: {value}")
-        # say_text(value)
-        client.speak(value)
+        if skip:
+            skip = False
+            continue
+
+        time.sleep(2)
+        say_text(value)
         time.sleep(1)
 
+        if not 'Вопрос' in key:
+            continue
 
+        # Останавливаем поток, чтобы не попал шум (например речь друга) в речь пользователя
+        stream.stop_stream()
+        time.sleep(1)
+        # и перезапускаем распознавание, чтобы убрать остатки былых слов
+        rec.Reset()
+        stream.start_stream()
+        result_text = listen_to_user()
+        result_text = result_by_words(result_text)
+        set_commands = set(result_text)
+        print(result_text)
+        print(set_commands)
+
+        if set_commands & word.SET_NO:
+            skip = True
+            continue
+
+        if not set_commands & word.SET_YES:
+            client.speak('Ты не ответила да и потому я перестаю рассказывать.')
+            return
 
 
 def listen_to_user():
@@ -1037,7 +1063,8 @@ def execute_command(commands_to_execute, set_commands, result_text):
 
     elif not commands_to_execute.isdisjoint(word.SET_I_CAN_DO):
         commands_to_execute -= word.SET_I_CAN_DO
-        # print('execute_command(): ', word.SET_TIME)
+        # Рассказ о том что умеет друг в json разбитый по областям (общее, трек, плейлист)
+        # поэтому можно организовать прослушивание конкретной области. Поэтому commands_to_execute -= word.SET_I_CAN_DO
         i_can_do()
 
     elif not commands_to_execute.isdisjoint(word.SET_BYE):

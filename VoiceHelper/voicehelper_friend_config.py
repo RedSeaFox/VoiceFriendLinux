@@ -32,7 +32,6 @@ USER_NAME = 'Люся'
 
 LANGUAGE = 'ru'
 USER_NAME = 'Люся'
-# USER_NAME = 'Л' + 'ю\u0301' + 'ся'
 TIME_TO_BYE = 22
 # LANGUAGE = 'en'
 # USER_NAME = 'Lucy'
@@ -188,6 +187,9 @@ elif LANGUAGE == 'ru':
     FILE_INFO_DIFFICULTY = ('Проблемы с файлом в котором описаны мои возможности. '
                      'Надо проверить его расположение и формат. '
                      'Программа не пострадала и может работать дальше.')
+    SET_YES = {'да', 'рассказывай', 'продолжай', 'продолжить', 'угу', 'ага'}
+    SET_NO = {'нет'}
+
 
     dir_model_vosk = dir_home + '/VoiceFriendLinux/VoiceHelper/vosk_model_small_ru/'
     MODEL_VOSK = Model(dir_model_vosk)
