@@ -1092,12 +1092,11 @@ def main():
                 print('Пора спать!')
                 # Ставим плеер на паузу, если он включен
                 if media_list_player.is_playing():
-                    print('Плеер играет')
-                    media_list_player.stop()
-                    print('Плеер остановлен')
-                    say_text(user_name + ', ' +  word.SAY_TO_BYE_1)
-                    say_time()
-                    say_text(word.SAY_TO_BYE_2)
+                    media_list_player.pause()
+
+                say_text(user_name + ', ' + word.SAY_TO_BYE_1)
+                say_time()
+                say_text(word.SAY_TO_BYE_2)
 
                 print('bye')
                 bye()
