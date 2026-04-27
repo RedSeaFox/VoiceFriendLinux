@@ -54,6 +54,7 @@ import voicehelper_friend_config as word
 client = speechd.SSIPClient('friends_voice')
 client.set_output_module('rhvoice')
 client.set_language('ru')
+# set_rate скорость -100 очень медленно, 0 нормальная скорость, 100 очень быстро
 # client.set_rate(15)
 client.set_rate(5)
 client.set_punctuation(speechd.PunctuationMode.SOME)
@@ -78,6 +79,7 @@ media_list = vlc_instance.media_list_new()
 
 len_playlist = 0
 
+user_name = word.USER_NAME
 
 def say_text(text):
     text_len = len(text)
@@ -91,18 +93,12 @@ def say_text(text):
         time.sleep(time_len)
 
 
-def play_vlc(playlist_for_play='Программа.m3u'):
+def play_vlc(playlist_for_play='SomethingWrong.m3u'):
     global len_playlist
     global media_list
     global media_list_player
 
     print('play_vlc() => ', media_list_player.get_state())
-
-    # print('play_vlc() current_playlist = ' + current_playlist)
-    # Здесь надо сообщить, какой плейлист загружается
-    # current_playlist_name = os.path.splitext(os.path.basename(current_playlist))[0]
-    # say_text(word.USER_NAME + word.START_ON_PLAYLIST + current_playlist_name)
-    # time.sleep(2)
 
     # Если плеер уже запущен, но находится в состоянии пауза, то запускаем его (продолжаем играть)
     if media_list_player.get_state() == vlc.State(4) :
@@ -112,13 +108,15 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         # (см. # Как только услышали слово друг, плеер ставим на паузу, если он включен)
         # все остается по-прежнему, просто возобновляем работу плеера
         statuses = read_statuses_from_track()
-        say_text(word.USER_NAME + word.START_ON_PLAYLIST + statuses["current_playlist_name"])
+        # say_text(word.USER_NAME + word.START_ON_PLAYLIST + statuses["current_playlist_name"])
+        say_text(user_name + word.START_ON_PLAYLIST + statuses["current_playlist_name"])
         time.sleep(2)
         media_list_player.pause()
 
     #  Stopped происходит только когда сказали список и название списка
     elif media_list_player.get_state() == vlc.State(5) :
-        say_text(word.USER_NAME + word.START_ON_PLAYLIST + playlist_for_play)
+        # say_text(word.USER_NAME + word.START_ON_PLAYLIST + playlist_for_play)
+        say_text(user_name + word.START_ON_PLAYLIST + playlist_for_play)
         print('play_vlc() => elif - State(5) Stopped')
 
         # Получаем название каталога с плейлистами
@@ -131,7 +129,6 @@ def play_vlc(playlist_for_play='Программа.m3u'):
 
         len_playlist = len(playlist_list)
 
-        # if len(playlist_list) == 0:
         if len_playlist == 0:
             say_text(word.PLAYLIST_EMPTY)
             return
@@ -150,7 +147,7 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         current_track_index = 0
         current_track_position = 0
 
-        # Считываем данные из json файла (to do перенести в обработчик?)
+        # Считываем данные из файла CurrentStatus.json (to do перенести в обработчик?)
         try:
             with (open(name_file_status, 'r', encoding='utf-8') as file):
                 loaded_data = json.load(file)
@@ -173,20 +170,13 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         except FileNotFoundError:
             print("FileNotFoundError")
             current_playlist = word.PlAYLIST_BY_DEFAULT
-            # current_track_index = 0
-            # current_track_position = 0
             # print('Чтение json. Файл не найден или поврежден. Берем значения по умолчанию')
         except json.JSONDecodeError:
             print('JSONDecodeError')
             current_playlist = word.PlAYLIST_BY_DEFAULT
-            # current_track_index = 0
-            # current_track_position = 0
         except Exception as e:
             # Другие возможные ошибки при работе с файлом
             print(f"Произошла другая ошибка: {e}")
-
-        # statuses = {"current_playlist": current_playlist, "current_track_index": current_track_index,
-        #             "current_track_position": current_track_position}
 
         media_list_player.play_item_at_index(current_track_index)
         print('play_vlc() => current_track_index = ', current_track_index)
@@ -208,7 +198,7 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         #
         # Создаем новый плейлист и загружаем в него список
         # Плейлист из файла загружаем в список (список, а не кортеж, т.к. планируется добавление в плейлист?)
-        # Плейлисты будут хранится в /home/seafox/VoiceFriend_PlayLists/
+        # Плейлисты будут храниться в ~/VoiceFriend_PlayLists/
         print('play_vlc() => else - State(1, 6 etc) - Ended, Opening etc ')
         statuses = read_statuses_from_file()
 
@@ -222,14 +212,13 @@ def play_vlc(playlist_for_play='Программа.m3u'):
 
         current_playlist_name = Path(statuses["current_playlist"]).stem
         print('play_vlc() => current_playlist_name = ', current_playlist_name)
-        say_text(word.USER_NAME + word.START_ON_PLAYLIST + current_playlist_name)
+        say_text(user_name + word.START_ON_PLAYLIST + current_playlist_name)
         time.sleep(2)
 
         playlist_list = load_playlist(statuses["current_playlist"])
 
         len_playlist = len(playlist_list)
 
-        # if len(playlist_list) == 0:
         if len_playlist == 0:
             say_text(word.PLAYLIST_EMPTY)
             return
@@ -250,18 +239,6 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         media_player.set_position(statuses["current_track_position"])
         print('play_vlc() => current_track_position = ', statuses["current_track_position"])
 
-        # ***********************
-        # current_playlist = statuses["current_playlist"]
-        # dir_name_track = Path(current_playlist)
-        # dir_track = dir_name_track.parent
-        # current_playlist_name = dir_track.stem
-        # current_playlist_name = Path(statuses["current_playlist"]).stem
-
-        # *******************
-
-        # say_text(word.USER_NAME + word.START_ON_PLAYLIST + current_playlist_name)
-        # time.sleep(2)
-        # print('play_vlc() => State else')
         media_list_player.play()
 
         # Текщую позицию при сохранении получаем так
@@ -274,7 +251,6 @@ def play_vlc(playlist_for_play='Программа.m3u'):
         # Или так?
         # media_player.set_mrl('/home/seafox/VoiceFriend_Musik/Песни/ABBA - MONEY, MONEY, MONEY.mp3')
         # dev -
-
 
 #region 'Статусы плейлистов и записей (какой текущий, позиция): чтение, сохранение'
 def read_statuses_from_file():
@@ -298,28 +274,20 @@ def read_statuses_from_file():
                 current_track_index = 0
                 current_track_position = 0
             else:
-                # current_track = loaded_data.get(current_playlist, {})
-                # ******************
                 dir_name_track = Path(current_playlist)
                 print('read_statuses_from_file() => dir_name_track = ', dir_name_track)
                 dir_track = dir_name_track.parent
                 print('read_statuses_from_file() => dir_track = ', dir_track)
-                # Надо получить имя плейлиста, а не папки!!!
-                # current_playlist_name = dir_track.name
                 current_playlist_name = dir_name_track.stem
                 print('read_statuses_from_file() => current_playlist_name = ', current_playlist_name)
-                # *****************
-                # current_track_index = loaded_data.get(current_playlist.get("track_number",0), 0)
                 seek_playlist = loaded_data[current_playlist_name]
                 current_track_index = seek_playlist['current_track_index']
                 current_track_position = seek_playlist["current_track_position"]
-                # ].get(current_playlist.get("track_number",0), 0)
-                # current_track_position = loaded_data.get(current_playlist.get("track_position",0), 0)
             print('read_statuses_from_file() =>  current_track_index = ',current_track_index, '  current_track_position = ', current_track_position)
     except FileNotFoundError:
         print("FileNotFoundError")
         # Здесь и ниже current_playlist = word.PlAYLIST_BY_DEFAULT используется в play_vlc, когда не удалось прочитать
-        # статусы из CurrentStatus
+        # статусы из CurrentStatus to do?
         current_playlist = word.PlAYLIST_BY_DEFAULT
         current_track_index = 0
         current_track_position = 0
@@ -333,7 +301,7 @@ def read_statuses_from_file():
         # Другие возможные ошибки при работе с файлом
         print(f"Произошла другая ошибка: {e}")
         print('JSONDecodeError')
-        # Не уверена, что так правильно
+        # Не уверена, что так правильно to do?
         current_playlist = word.PlAYLIST_BY_DEFAULT
         current_track_index = 0
         current_track_position = 0
@@ -359,10 +327,6 @@ def read_statuses_from_track():
     med = media_player.get_media()
     print('read_statuses_from_track() =>media_list_player.get_state() = ', media_list_player.get_state())
     # Получаем индекс текущего трека в плейлисте
-    # *************************
-    # media_list_player.pause()
-    # ******************************
-    # media_list.lock()
     index_of_media = media_list.index_of_item(med)
     if index_of_media == -1:
         # При первом старте, когда еще не был запущен ни один трек, сохранять нечего, поэтому statuses пустой
@@ -370,20 +334,16 @@ def read_statuses_from_track():
         return statuses
 
 
-    # media_list.unlock()
     print('read_statuses_from_track() => index_of_media', index_of_media)
 
-    # *************************
-    # media_list_player.pause()
-    # ******************************
     # Получаем имя текущего плейлиста
     mrl = med.get_mrl()
     decoded_mrl = unquote(mrl)
     dir_name_track = Path(decoded_mrl)
     dir_track = dir_name_track.parent
     current_playlist_name = dir_track.name
-    # to do Если программа, то сохранять в каталог с программой
-    # Здесь возможно надо исправить и вообще подумать нужен ли плейдист по умолчанию
+    # to do Если PlAYLIST_BY_DEFAULT, то сохранять в каталог с программой
+    # Здесь возможно надо исправить и вообще подумать нужен ли плейлист по умолчанию to do?
     if current_playlist_name == word.PlAYLIST_BY_DEFAULT:
         current_playlist = current_playlist_name + '.m3u'
     else:
@@ -478,7 +438,7 @@ def set_playlist(set_commands, result_text):
     if len(playlist_for_play) == 0:
         save_current_status()
         # Если названый плейлист не найден в списке плейлистов, то перечисляем все плейлисты, которые есть
-        say_text(word.USER_NAME + word.ALL_PLAYLIST_1)
+        say_text(user_name + word.ALL_PLAYLIST_1)
         time.sleep(2)
         for name in set_of_playlist:
             say_text(os.path.splitext(os.path.basename(name))[0])
@@ -486,7 +446,7 @@ def set_playlist(set_commands, result_text):
             # Это чтобы паузы были между названиями
 
         # И предлагаем выбрать один из них
-        say_text(word.USER_NAME + word.ALL_PLAYLIST_2)
+        say_text(user_name + word.ALL_PLAYLIST_2)
     else:
         #  Теперь новый плейлист будет точно загружаться, а значит надо запомнить старый плейлист и позицию в медиа.
         # Сохраняем данные в word.FILE_STATUS
@@ -518,9 +478,9 @@ def load_playlist(playlist_name: str):
 
     for line in playlist_list_from_m3u:
         if line[0:5] == '/home':
-            # В Windows плейлисты делала в vlc. По умолчанию плейлист сохраняет путь к файлу  в url формате,
+            # В Windows плейлисты делала в vlc. По умолчанию плейлист сохраняет путь к файлу в url формате,
             # но в Linux при сохранении плейлиста в vlc url путь с русскими буквами перекодируется в английский.
-            # Поэтому для создания плейлиста в Linux использую JuK, а он создает плейлисты с обычными путями.
+            # Поэтому для создания плейлиста в Linux использую JuK/CreatePlaylists.py, а он создает плейлисты с обычными путями.
             # Для определения, что это путь к файлу использую /home
             media_path = os.path.abspath(line.rstrip())
             if os.path.isfile(media_path):
@@ -576,7 +536,7 @@ def choose_playlst():
             name_playlist = file[:-4]
             set_of_playlist.add(name_playlist)
 
-    say_text(word.USER_NAME + word.ALL_PLAYLIST_3)
+    say_text(user_name + word.ALL_PLAYLIST_3)
     time.sleep(2)
     for name in set_of_playlist:
         say_text(os.path.splitext(os.path.basename(name))[0])
@@ -584,7 +544,7 @@ def choose_playlst():
         # Это чтобы паузы были между названиями
 
     # И предлагаем выбрать один из них
-    say_text(word.USER_NAME + word.ALL_PLAYLIST_2)
+    say_text(user_name + word.ALL_PLAYLIST_2)
 #endregion
 
 
@@ -702,7 +662,7 @@ def go_to(set_commands, result_text):
     print('go_to(): number: ', number)
 
     if not number:
-        say_text(word.USER_NAME + word.NO_NUMBER)
+        say_text(user_name + word.NO_NUMBER)
         return
 
     if not set_commands.isdisjoint(word.SET_MEASURE_TRACK):
@@ -711,10 +671,10 @@ def go_to(set_commands, result_text):
             media_list_player.set_pause(1)
 
         if number > len_playlist - 2:
-            say_text(word.USER_NAME + word.number_greater_len_pl(number, len_playlist-2))
+            say_text(user_name + word.number_greater_len_pl(number, len_playlist-2))
             return
 
-        say_text(word.USER_NAME + word.GOTO_TRACK + str(number))
+        say_text(user_name + word.GOTO_TRACK + str(number))
 
         media_list_player.play_item_at_index(number)  # переходит к треку номер number
 
@@ -734,7 +694,7 @@ def go_to(set_commands, result_text):
         media_list_player.play()
 
     else:
-        say_text(word.USER_NAME + word.MEASURE_UNDEFINED)
+        say_text(user_name + word.MEASURE_UNDEFINED)
 
 
 # Быстрая перемотка вперед. Прыжок через несколько треков (например два трека)
@@ -748,7 +708,7 @@ def go_forward(set_commands, result_text):
     number = get_number(set_commands, result_text)
 
     if not number:
-        say_text(word.USER_NAME + word.NO_NUMBER)
+        say_text(user_name + word.NO_NUMBER)
         return
 
     if not set_commands.isdisjoint(word.SET_MEASURE_TRACK):
@@ -798,7 +758,7 @@ def go_forward(set_commands, result_text):
         media_player.set_time(time_expected)
 
     else:
-        say_text(word.USER_NAME + word.MEASURE_UNDEFINED)
+        say_text(user_name + word.MEASURE_UNDEFINED)
 
 
 # Быстрая перемотка назад. Прыжок через несколько треков (например два трека)
@@ -812,7 +772,7 @@ def go_back(set_commands, result_text):
     number = get_number(set_commands, result_text)
 
     if not number:
-        say_text(word.USER_NAME + word.NO_NUMBER)
+        say_text(user_name + word.NO_NUMBER)
         return
 
     if not set_commands.isdisjoint(word.SET_MEASURE_TRACK):
@@ -857,7 +817,7 @@ def go_back(set_commands, result_text):
         else:
             media_player.set_time(time_expected)
     else:
-        say_text(word.USER_NAME + word.MEASURE_UNDEFINED)
+        say_text(user_name + word.MEASURE_UNDEFINED)
 #endregion
 
 
@@ -963,7 +923,7 @@ def i_can_do():
             continue
 
         if not set_commands & word.SET_YES:
-            client.speak('Ты не ответила да и потому я перестаю рассказывать.')
+            client.speak(word.NO_WORD_YES)
             return
 
 
@@ -1011,22 +971,18 @@ def result_by_words(result_text):
 
 def execute_command(commands_to_execute, set_commands, result_text):
     if not commands_to_execute:
-        say_text(word.USER_NAME + word.NO_COMMAND)
+        say_text(user_name + word.NO_COMMAND)
         print('execute_command():', word.NO_COMMAND)
         save_current_status()
     elif not commands_to_execute.isdisjoint(word.SET_PLAY):
-        # say_text(word.USER_NAME + word.PLAYER_START)
         # print('execute_command(): ', word.PLAYER_START)
-        # Linux +
-        # time.sleep(3)
-        # Linux-
         play_vlc()
     elif not commands_to_execute.isdisjoint(word.SET_NEXT):
-        say_text(word.USER_NAME + word.PLAYER_NEXT)
+        say_text(user_name + word.PLAYER_NEXT)
         print('execute_command(): ',  word.PLAYER_NEXT)
         play_next()
     elif not commands_to_execute.isdisjoint(word.SET_PREVIOUS):
-        say_text(word.USER_NAME + word.PLAYER_PREVIOUS)
+        say_text(user_name + word.PLAYER_PREVIOUS)
         print('execute_command(): ', word.PLAYER_PREVIOUS)
         play_previous()
     elif not commands_to_execute.isdisjoint(word.SET_GOTO):
@@ -1035,12 +991,12 @@ def execute_command(commands_to_execute, set_commands, result_text):
         go_to(set_commands, result_text)
     elif not commands_to_execute.isdisjoint(word.SET_FORWARD):
         set_commands -= word.SET_FORWARD
-        say_text(word.USER_NAME + word.PLAYER_FORWARD)
+        say_text(user_name + word.PLAYER_FORWARD)
         print('execute_command(): ', word.PLAYER_FORWARD)
         go_forward(set_commands, result_text)
     elif not commands_to_execute.isdisjoint(word.SET_BACK):
         commands_to_execute -= word.SET_BACK
-        say_text(word.USER_NAME + word.PLAYER_BACK)
+        say_text(user_name + word.PLAYER_BACK)
         print('execute_command(): ', word.PLAYER_BACK)
         go_back(set_commands, result_text)
     elif not commands_to_execute.isdisjoint(word.SET_PlAYLIST):
@@ -1050,7 +1006,7 @@ def execute_command(commands_to_execute, set_commands, result_text):
     elif not commands_to_execute.isdisjoint(word.SET_SEARCH):
         commands_to_execute -= word.SET_SEARCH
         print('execute_command(): ', word.PLAYER_SEARCH)
-        say_text(word.USER_NAME + word.PLAYER_SEARCH + ' '.join(commands_to_execute))
+        say_text(user_name + word.PLAYER_SEARCH + ' '.join(commands_to_execute))
     elif not commands_to_execute.isdisjoint(word.SET_TIME):
         commands_to_execute -= word.SET_TIME
         # print('execute_command(): ', word.SET_TIME)
@@ -1070,32 +1026,33 @@ def execute_command(commands_to_execute, set_commands, result_text):
     elif not commands_to_execute.isdisjoint(word.SET_BYE):
         commands_to_execute -= word.SET_BYE
         print('execute_command(): ', word.BYE)
-        say_text(word.USER_NAME + ', ' + word.BYE)
+        say_text(user_name + ', ' + word.BYE)
         bye()
     else:
-        say_text(word.USER_NAME + word.EXCEPT)
+        say_text(user_name + word.EXCEPT)
         print('execute_command(): ', word.EXCEPT)
 
 
 def process_text_main(set_commands, result_text):
-    set_commands -= {word.FRIEND}
+    set_commands -= word.SET_FRIEND
 
     # Проверяем, есть ли в словах пользователя команды для выполнения
     commands_to_execute = set_commands & word.SET_ALL_COMMANDS
 
     # Если во множестве нет других слов (множество пустое), значит надо запросить команды
     if not commands_to_execute:
-        say_text(word.USER_NAME + word.SAY_COMMAND)
+        say_text(user_name + word.SAY_COMMAND)
         # Останавливаем поток, чтобы не попал шум (например речь друга) в речь пользователя
         stream.stop_stream()
         # и перезапускаем распознавание, чтобы убрать остатки былых слов
         rec.Reset()
         stream.start_stream()
-        print('process_text_main():  ', word.USER_NAME, word.SAY_COMMAND)
+        # print('process_text_main():  ', word.USER_NAME, word.SAY_COMMAND)
+        print('process_text_main():  ', user_name, word.SAY_COMMAND)
         result_text = listen_to_user()
         result_text = result_by_words(result_text)
         set_commands = set(result_text)
-        set_commands -= {word.FRIEND}
+        set_commands -= word.SET_FRIEND
         # Проверяем, есть ли в словах пользователя команды для выполнения
         commands_to_execute = set_commands & word.SET_ALL_COMMANDS
 
@@ -1106,9 +1063,6 @@ def process_text_main(set_commands, result_text):
 
 
 def bye():
-    # f = open(word.FILE_STATUS, 'w')
-    # f.write(current_playlist)
-    # f.close()
     save_current_status()
 
     stream.stop_stream()
@@ -1123,6 +1077,8 @@ def main():
     global media_list
 
     record_seconds = 2
+    friend = word.SET_FRIEND
+    time_to_bye = datetime.datetime.now().replace(hour=word.TIME_TO_BYE_HOUR, minute=word.TIME_TO_BYE_MINUTE)
 
     # say_text(word.PROGRAM_IS_RUNNING)
 
@@ -1130,31 +1086,21 @@ def main():
         listen = True
         while listen:
 
-            # 09/03/26 +
             # Надо выключить в назначенное время
-            current_hour = datetime.datetime.now().hour
-            print('current_hour = ', current_hour)
-            print('word.TIME_TO_BYE = ', word.TIME_TO_BYE)
-            if current_hour > word.TIME_TO_BYE:
+            # if datetime.datetime.now() > word.TIME_TO_BYE:
+            if datetime.datetime.now() > time_to_bye:
                 print('Пора спать!')
                 # Ставим плеер на паузу, если он включен
                 if media_list_player.is_playing():
                     print('Плеер играет')
-                    # media_list_player.pause()
                     media_list_player.stop()
                     print('Плеер остановлен')
-
-
-                    # say_text(word.USER_NAME + word.TIME_TO_BYE_1 + word.BYE)
-                    say_text(word.USER_NAME + ', ' +  word.SAY_TO_BYE_1)
+                    say_text(user_name + ', ' +  word.SAY_TO_BYE_1)
                     say_time()
                     say_text(word.SAY_TO_BYE_2)
 
                 print('bye')
                 bye()
-
-            # 09/03/26 +
-
 
             for _ in range(0, RATE // CHUNK * record_seconds):
                 data = stream.read(CHUNK)
@@ -1165,51 +1111,15 @@ def main():
             print('\n')
             print('main() => result_text: ', result_text.replace("\n", ""), end='\n')
 
-            # 23/04/26 + Другой вариант обнаружить что обратились к другу (несколько названий друга
             result_text = result_by_words(result_text)
             set_commands = set(result_text)
-            if set_commands & word.SET_FRIEND:
+            if set_commands & friend:
                 if media_list_player.is_playing():
                     media_list_player.pause()
 
                 print('main(): The word friend has been discovered. set_commands=', set_commands,
                       ', Running process_text_main')
                 process_text_main(set_commands, result_text)
-            # 23/04/26 -
-
-            # 23/04/26 + Старый вариант обнаружить что обратились к другу (одно название друга)
-            # if word.FRIEND in result_text:
-            #     # В строке "друг" может быть в словах "вдруг", "другой" и проч.
-            #     # Поэтому далее проверяем на точное соответствие слову друг
-            #     result_text = result_by_words(result_text)
-            #     set_commands = set(result_text)
-            #     if word.FRIEND in set_commands:
-            #         # Как только услышали слово друг, плеер ставим на паузу, если он включен
-            #         if media_list_player.is_playing():
-            #             media_list_player.pause()
-            #
-            #         print('main(): The word friend has been discovered. set_commands=', set_commands, ', Running process_text_main')
-            #         process_text_main(set_commands, result_text)
-            # 23/04/26 -
-            # print('media_list_player.get_state() = ', media_list_player.get_state())
-            # 09/03/26 +
-            # n = media_player.get_position()
-            # print('main() =>  media_player.get_position() = ', n)
-            # 09/03/26 -
-            # 09/03/26 +
-            # med = media_player.get_media()
-            # # Получаем индекс текущего трека в плейлисте
-            # index_of_media = media_list.index_of_item(med)
-            # print('main() => index_of_media', index_of_media)
-            # 09/03/26 -
-            # nn = media_player.audio_get_track()
-            # print('media_player.audio_get_track()', nn)
-            # print('audio_get_track_description = ', media_player.audio_get_track_description())
-            # if not media_list_player.get_state() == vlc.State(0):
-            #     med = media_player.get_media()
-            #     # можно получить имя трека
-            #     print('med.get_mrl() = ', med.get_mrl())
-            #     # MediaList.index_of_item
 
             media_player = media_list_player.get_media_player()
 
@@ -1235,8 +1145,6 @@ def main():
                 # b2=med.get_tracks_info()
                 # b5=med.get_state()
                 # b6=med.get_type()
-
-            # print('main(): media_list_player.get_state()', media_list_player.get_state())
 
             rec.Reset()
             stream.stop_stream()

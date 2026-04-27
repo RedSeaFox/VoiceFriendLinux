@@ -11,7 +11,7 @@ venv/
 *.odt*
 *_templ_*
 *orig_*
-*.m3u*
+# *.m3u*
 *.mp3*
 *.wav*
 *.jpg*

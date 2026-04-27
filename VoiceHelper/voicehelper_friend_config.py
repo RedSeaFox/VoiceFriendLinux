@@ -32,7 +32,9 @@ USER_NAME = 'Люся'
 
 LANGUAGE = 'ru'
 USER_NAME = 'Люся'
-TIME_TO_BYE = 22
+# TIME_TO_BYE = 22
+TIME_TO_BYE_HOUR = 22
+TIME_TO_BYE_MINUTE = 22
 # LANGUAGE = 'en'
 # USER_NAME = 'Lucy'
 
@@ -187,6 +189,7 @@ elif LANGUAGE == 'ru':
     FILE_INFO_DIFFICULTY = ('Проблемы с файлом в котором описаны мои возможности. '
                      'Надо проверить его расположение и формат. '
                      'Программа не пострадала и может работать дальше.')
+    NO_WORD_YES = 'Ты не ответила. Да. И потому, я перестаю рассказывать.'
     SET_YES = {'да', 'рассказывай', 'продолжай', 'продолжить', 'угу', 'ага'}
     SET_NO = {'нет'}
 
@@ -208,11 +211,11 @@ elif LANGUAGE == 'ru':
     FILE_STATUS = 'CurrentStatus'
 
     # В этот плейлист надо включить информацию о программе, как с ней общаться пользователю
-    PlAYLIST_BY_DEFAULT = 'Программа.m3u'
+    PlAYLIST_BY_DEFAULT = 'SomethingWrong.m3u'
     # PlAYLIST_BY_DEFAULT = 'hello.m3u'
     #
     # Слово - маячок. По нему программа определяет, что обратились к ней.
-    FRIEND = 'друг'
+    # FRIEND = 'друг'
     SET_FRIEND = {'друг', 'дружок'}
 
     # PlAYLIST = ', включаю плейлист '
