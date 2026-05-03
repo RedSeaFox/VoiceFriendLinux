@@ -60,17 +60,165 @@ client.set_rate(5)
 client.set_punctuation(speechd.PunctuationMode.SOME)
 
 
+# RATE (частота дискретизации) - сколько сэмплов в секунду записывается.
+# RATE = 16000 = 16000 "точек" звука в секунду
+#     • 44100 = CD-качество
+#     • 8000 = телефонное качество
+# Критично важно
+#     • Vosk обычно обучен на 16000 Hz
+#     • если микрофон пишет в 48000 → происходит ресэмплинг
+#     • плохой ресэмплинг = искажение речи
+# Простыми словами: RATE → качество и совместимость с моделью (Vosk).
+# Можно подстроить RATE под устройство. Если устройство реально работает в 48000, то лучше сделать так:
+# RATE = int(dev['defaultSampleRate'])  # например 48000
+# Делала проверку, оказалось что: requested = 16000Hz, got = 44100Hz. please, try the plug plugin
+# Т.е я попросил 16000 Hz, а устройство реально работает на 44100 Hz и НЕ умеет напрямую писать в 16000.
+# Почему это проблема: Vosk ожидает 16000 Hz.
+# Если подать 44100 как 16000, речь «ускоряется», искажается распознавание, ломается
+# Поэтому лучший вариант (лучший баланс), оставить: RATE = 16000
+# Вариант 2 (правильный, но сложнее), записывать в 44100, потом ресэмплить самому
+# RATE = 44100
+# и потом конвертировать в 16000 перед подачей в Vosk
+# Но! Это: сложнее, нагружает CPU, не всегда лучше
+# Важно: Vosk официально лучше всего работает на 16000, но на практике 44100 иногда тоже ок
+#
+# CHUNK (размер блока) - сколько сэмплов читается за один раз.
+# Время одного CHUNK = CHUNK / RATE
+# Если CHUNK = 8000, то 8000 / 16000 = 0.5 секунды, то есть ты читаешь звук кусками по полсекунды
+# Большой CHUNK (как у тебя): высокая задержка, грубая нарезка речи, хуже реакция, хуже распознавание коротких слов
+# Маленький CHUNK (1024–2048): плавный поток, лучше для Vosk, меньше потерь.
+# На слабом ноутбуке:
+# Большой CHUNK = меньше вызовов → вроде легче CPU
+# НО, если поток "рвется" → хуже результат
+# Вывод: оптимально: CHUNK = 1024 или 2048
+# Простыми словами: CHUNK → насколько "гладкий" поток
+#
+# frames_per_buffer это размер буфера на уровне аудиосистемы:
+# stream = py_audio.open(..., frames_per_buffer=CHUNK)
+# Обычно = CHUNK (как у тебя)
+# Что делает: определяет, сколько данных накапливается перед отдачей, влияет на задержку и стабильность:
+# Маленький буфер: низкая задержка, риск underrun (пропуски)
+# Большой буфер: стабильнее, но задержка выше
+# На слабом ноутбуке: лучше чуть больше буфер, чем слишком маленький
+# Простыми словами: frames_per_buffer → стабильность vs задержка
+#
+# Связка параметров (самое важное). Вот где многие ошибаются: for _ in range(0, RATE // CHUNK * record_seconds):
+# Подставим твои значения:
+# RATE = 16000
+# CHUNK = 8000
+# record_seconds = 2 (обработка «кусками по 2 секунды»)
+# RATE // CHUNK * record_seconds = 4, → всего 4 итерации. Ты читаешь всего 4 куска аудио
+# Почему это плохо: речь режется кусками, Vosk не получает непрерывный поток, ухудшается контекст.
+#
+#
+# rec.Reset() - это метод из Vosk.
+# Он: полностью сбрасывает внутреннее состояние распознавателя, удаляет: накопленный аудиоконтекст, текущую гипотезу фразы.
+# По сути: «забудь всё, что ты только что слышал».
+# Почему это плохо: распознавание речи — это контекстная штука:
+# "привет как дела" лучше распознаётся вместе, чем по кускам: "привет" → reset → "как" → reset → "дела"
+# После Reset(): модель начинает «с нуля», возрастает вероятность ошибок
+#
+# stream.stop_stream() - из PyAudio
+# Он: останавливает захват аудио с микрофона, поток больше не читает данные.
+#
+# stream.start_stream() снова запускает поток записи
+#
+# Чем плохо rec.Reset(), stream.stop_stream(), stream.start_stream()
+# Ты: рвешь аудиопоток, сбрасываешь контекст. Для распознавания речи это очень плохо.
+# Как делают обычно: читают поток непрерывно, передают маленькие куски, не делают Reset постоянно.
+# rec.Reset(), stream.stop_stream(), stream.start_stream() означает:
+# выкинули весь контекст распознавания, остановили поток, снова запустили (с разрывом).
+# На практике это даёт: 1. потерю кусочков речи, между stop/start часть звука просто теряется,
+# 2. разрывы в аудио, поток становится: [кусок] — пауза — [кусок] — пауза
+# 3. ухудшение распознавания особенно на слабом ноутбуке при шуме, при быстрой речи.
+# 4. «Бредовые» слова потому что модель не видит контекста и пытается угадать по обрывкам
+# Когда это вообще нужно? Редко, но бывает,  если ты хочешь:
+# жёстко разделять команды, обрабатывать строго фиксированные куски (например 2 секунды).
+# Но для живой речи — это плохая идея.
+# То есть rec.Reset(), stream.stop_stream(), stream.start_stream() делает:
+# сброс контекста, разрыв аудио, потерю данных и прямо ухудшает распознавание, особенно на слабом железе.
+#
+# Как правильно: поток никогда не останавливают, Reset() почти не используют, доверяют rec.AcceptWaveform(data).
+# rec.AcceptWaveform(data) сам понимает, когда фраза закончена, возвращает финальный результат.
+#
+# Рекомендуемые настройки для слабого ноутбука:
+# RATE = 16000
+# CHUNK = 1024  # или 2048
+# frames_per_buffer = CHUNK
+#
+# Model('/home/.../vosk_model_small_ru/') - маленькая модель: быстрее, но менее точная.
+# На слабом ноуте это усугубляется: хуже звук + слабый CPU = сильная деградация
+# Можно попробовать большую модель (если потянет) или наоборот оптимизировать поток.
+# Vosk ждёт 16000 Hz
+# Есть 2 варианта:
+# Вариант 1 (проще и чаще норм):
+# Если устройство нормально принимает 16000 (у тебя, похоже, да), то лучший вариант оставить:
+# RATE = 16000
+# Вариант 2 (если есть проблемы)
+# Если окажется, что устройство реально пишет в 48000 и 16000 даёт плохой звук, тогда:
+# записывать в 48000, делать ресэмплинг в Python (но это сложнее и тяжелее для CPU).
 CHANNELS = 1  # моно
 RATE = 16000  # частота дискретизации - кол-во фреймов в секунду
-CHUNK = 8000  # кол-во фреймов за один "запрос" к микрофону - тк читаем по кусочкам
+# CHUNK = 8000  # кол-во фреймов за один "запрос" к микрофону - тк читаем по кусочкам
+CHUNK = 1024  # кол-во фреймов за один "запрос" к микрофону - тк читаем по кусочкам
 FORMAT = pyaudio.paInt16  # глубина звука = 16 бит = 2 байта
 
 # Чтобы использовать PyAudio, сначала создаем экземпляр PyAudio, который получит
 # системные ресурсы для PortAudio (короче подключаемся к микрофону)
 py_audio = pyaudio.PyAudio()
-# Открываем поток для чтения (input=True) данных с микрофона по-умолчанию и задаем параметры
-stream = py_audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
-rec = KaldiRecognizer(word.MODEL_VOSK, 16000)
+model = word.MODEL_VOSK
+
+# # распознаватель для да и нет (ограниченный словарь)
+# grammar_yes_now = '["да", "давай", "расскажи", "нет","не надо"]'
+# rec_yes_now  = KaldiRecognizer(model, RATE, grammar_yes_now)
+
+# Поиск usb микрофона
+def find_input_device(p, name_part):
+    for i in range(p.get_device_count()):
+        dev = p.get_device_info_by_index(i)
+        if name_part in dev['name'] and dev['maxInputChannels'] > 0:
+            return i
+    return None
+
+DEVICE_INDEX = find_input_device(py_audio, "USB Audio")
+# Какое устройство берётся по умолчанию?
+# Если в PyAudio ты пишешь: stream = p.open(input=True, ...), без input_device_index,
+# то используется: default input device (системное устройство по умолчанию)
+# В выводе PyAudio:
+# 4 pulse 32
+# 5 default 32
+#
+#  pulse — через PulseAudio / PipeWire
+# default — системный дефолт
+print("Используем устройство:", DEVICE_INDEX)
+
+# Создаём аудиопоток (stream), через который потом читаем звук с микрофона или пишем его.
+# py_audio.open: открывает аудиоустройство (микрофон), настраивает параметры (частота, формат, каналы),
+# создаёт объект stream, резервирует устройство (оно становится «занято»).
+# (input=True означает, что мы читаем звук (микрофон), если было бы output=True, то это уже вывод звука (динамики)
+# про остальные параметры см. выше)
+# Потом через stream читаем звук.
+# Т.е. p.open() → создаёт канал, stream.read() → читает звук.
+# p.open(...) только создаёт поток, stream.start_stream() - реально начинает запись
+if DEVICE_INDEX == None:
+    stream = py_audio.open(format=FORMAT,
+                           channels=CHANNELS,
+                           rate=RATE,
+                           input=True,
+                           frames_per_buffer=CHUNK,
+                           # input_device_index=DEVICE_INDEX
+                           )
+else:
+    stream = py_audio.open(format=FORMAT,
+                           channels=CHANNELS,
+                           rate=RATE,
+                           input=True,
+                           frames_per_buffer=CHUNK,
+                           input_device_index=DEVICE_INDEX,
+                           )
+
+stream.start_stream()
+
 
 # Большинство команд к другу касаются плеера, поэтому он должен быть всегда доступен
 vlc_instance = vlc.Instance()
@@ -865,7 +1013,7 @@ def say_day():
 #endregion
 
 
-def i_can_do():
+def start_i_can_do():
     name_file_info = word.FILE_INFO
     is_err = False
     text = ''
@@ -892,81 +1040,100 @@ def i_can_do():
         say_text(word.SAME_WRONG)
         return
 
-    # Перебираем пары и озвучиваем значения
-    skip = False
-    for key, value in data.items():
-        if skip:
-            skip = False
-            continue
 
-        time.sleep(2)
-        say_text(value)
-        time.sleep(1)
-
-        if not 'Вопрос' in key:
-            continue
-
-        # Останавливаем поток, чтобы не попал шум (например речь друга) в речь пользователя
-        stream.stop_stream()
-        time.sleep(1)
-        # и перезапускаем распознавание, чтобы убрать остатки былых слов
-        rec.Reset()
-        stream.start_stream()
-        result_text = listen_to_user()
-        result_text = result_by_words(result_text)
-        set_commands = set(result_text)
-        print(result_text)
-        print(set_commands)
-
-        if set_commands & word.SET_NO:
-            skip = True
-            continue
-
-        if not set_commands & word.SET_YES:
-            client.speak(word.NO_WORD_YES)
-            return
+    scenario = {
+            "type": "i_can_do",
+            "data": data,
+            "step": 0
+        }
 
 
-def listen_to_user():
-    record_seconds = 2
-    listen = True
-    max_replay = 1
-    count_replay = 0
-    max_len_rec = 100
-    result_text = ''
+    # сразу говорим "общее"
+    print(data["общее"])
+    say_text(data["общее"])
+    # time.sleep(3)
 
-    # stream.start_stream() Надо?
-    while listen:
-        for _ in range(0, RATE // CHUNK * record_seconds):
-            data = stream.read(CHUNK)
-            rec.AcceptWaveform(data)
+    # задаём первый вопрос
+    print(data["ВопросПлеер"])
+    say_text(data["ВопросПлеер"])
+    # time.sleep(3)
 
-        # Проверяем, изменился текст или нет и если не изменился, то сколько раз он уже не менялся
-        if result_text == rec.PartialResult():
-            count_replay += 1
-            # Если текст не меняется уже max_replay раз
-            if count_replay > max_replay - 1:
-                listen = False
-        elif len(rec.PartialResult()) > max_len_rec:
-            listen = False
-        else:
-            count_replay = 0
-            result_text = rec.PartialResult()
+    return scenario
 
-    print('listen_to_user(): result_tex: ', result_text.replace("\n", ""))
+# Пока так (хард код), потом переделать to do
+def process_i_can_do(scenario, answer):
+    data = scenario["data"]
+    step = scenario["step"]
 
-    return result_text
+    # ======================
+    # ШАГ 0 → Плеер
+    # ======================
+    if step == 0:
+        if answer == "yes":
+            print(data["плеер"])
+            say_text(data["плеер"])
+            # time.sleep(3)
 
+        print(data["ВопросПлейлист"])
+        scenario["step"] = 1
+        say_text(data["ВопросПлейлист"])
+        # time.sleep(3)
+        return scenario
 
-def result_by_words(result_text):
-    result_text = result_text.replace("\n", "")
-    result_text = result_text.replace("partial", "")
-    result_text = result_text.replace(":", "")
-    result_text = result_text.replace("{", "")
-    result_text = result_text.replace("}", "")
-    result_text = result_text.replace('"', "")
+    # ======================
+    # ШАГ 1 → Плейлист
+    # ======================
+    elif step == 1:
+        if answer == "yes":
+            print(data["плейлист"])
+            say_text(data["плейлист"])
+            # time.sleep(3)
 
-    return result_text.split()
+        print(data["ВопросТреки"])
+        say_text(data["ВопросТреки"])
+        scenario["step"] = 2
+        # time.sleep(3)
+        return scenario
+    # **********************************
+    #     == == == == == == == == == == ==
+    # ШАГ 2 → Треки
+    # ======================
+    elif step == 2:
+        if answer == "yes":
+            print(data["треки"])
+            say_text(data["треки"])
+            # time.sleep(3)
+
+        print(data["ВопросТреки2"])
+        say_text(data["ВопросТреки2"])
+        scenario["step"] = 3
+    # time.sleep(3)
+        return scenario
+    # == == == == == == == == == == ==
+    # ШАГ 3 → Треки2
+    # ======================
+    elif step == 3:
+        if answer == "yes":
+            print(data["треки2"])
+            say_text(data["треки2"])
+            # time.sleep(3)
+
+        print(data["ВопросВремя"])
+        say_text(data["ВопросВремя"])
+        scenario["step"] = 4
+        # time.sleep(3)
+        return scenario
+     # ======================
+        # ШАГ 4 → Время
+    # ======================
+    elif step == 4:
+        if answer == "yes":
+            print(data["время"])
+            say_text(data["время"])
+            say_text(data["помощь"])
+
+        print("Готово")
+        return None  # конец сценария
 
 
 def execute_command(commands_to_execute, set_commands, result_text):
@@ -1033,35 +1200,6 @@ def execute_command(commands_to_execute, set_commands, result_text):
         print('execute_command(): ', word.EXCEPT)
 
 
-def process_text_main(set_commands, result_text):
-    set_commands -= word.SET_FRIEND
-
-    # Проверяем, есть ли в словах пользователя команды для выполнения
-    commands_to_execute = set_commands & word.SET_ALL_COMMANDS
-
-    # Если во множестве нет других слов (множество пустое), значит надо запросить команды
-    if not commands_to_execute:
-        say_text(user_name + word.SAY_COMMAND)
-        # Останавливаем поток, чтобы не попал шум (например речь друга) в речь пользователя
-        stream.stop_stream()
-        # и перезапускаем распознавание, чтобы убрать остатки былых слов
-        rec.Reset()
-        stream.start_stream()
-        # print('process_text_main():  ', word.USER_NAME, word.SAY_COMMAND)
-        print('process_text_main():  ', user_name, word.SAY_COMMAND)
-        result_text = listen_to_user()
-        result_text = result_by_words(result_text)
-        set_commands = set(result_text)
-        set_commands -= word.SET_FRIEND
-        # Проверяем, есть ли в словах пользователя команды для выполнения
-        commands_to_execute = set_commands & word.SET_ALL_COMMANDS
-
-    print('process_text_main(): result_text', result_text)
-    print('process_text_main(): set_commands', set_commands)
-    print('process_text_main(): commands_to_execute', commands_to_execute)
-    execute_command(commands_to_execute, set_commands, result_text)
-
-
 def bye():
     save_current_status()
 
@@ -1076,15 +1214,28 @@ def main():
     global media_list_player
     global media_list
 
-    record_seconds = 2
-    friend = word.SET_FRIEND
+    # friend = word.SET_FRIEND # to do Сделать в wake_rec из word.SET_FRIEND
     time_to_bye = datetime.datetime.now().replace(hour=word.TIME_TO_BYE_HOUR, minute=word.TIME_TO_BYE_MINUTE)
 
-    # say_text(word.PROGRAM_IS_RUNNING)
+    # распознаватель для wake word (ограниченный словарь!)
+    wake_rec = KaldiRecognizer(model, RATE, '["друг", "дружок"]')
+    # распознаватель для обычной речи
+    cmd_rec = KaldiRecognizer(model, RATE)
+    # распознаватель для да и нет (ограниченный словарь)
+    grammar_yes_now = '["да", "нет"]'
+    yesno_rec = KaldiRecognizer(model, RATE, grammar_yes_now)
+
+    MODE_WAKE = 0
+    MODE_COMMAND = 1
+    MODE_YESNO = 2
+    yesno_deadline = 0
+
+    mode = MODE_WAKE
+    command_timeout = 15  # секунд
+    command_start_time = 0
 
     try:
-        listen = True
-        while listen:
+        while True:
 
             # Надо выключить в назначенное время
             # if datetime.datetime.now() > word.TIME_TO_BYE:
@@ -1101,24 +1252,95 @@ def main():
                 print('bye')
                 bye()
 
-            for _ in range(0, RATE // CHUNK * record_seconds):
-                data = stream.read(CHUNK)
-                rec.AcceptWaveform(data)
+            data = stream.read(CHUNK, exception_on_overflow=False)
 
-            result_text = rec.PartialResult()
+            # РЕЖИМ ОЖИДАНИЯ
+            if mode == MODE_WAKE:
+                if wake_rec.AcceptWaveform(data):
+                    result = json.loads(wake_rec.Result())
+                    text = result.get("text", "")
 
-            print('\n')
-            print('main() => result_text: ', result_text.replace("\n", ""), end='\n')
+                    if text:
+                        if media_list_player.is_playing():
+                            media_list_player.pause()
+                        print("Я услышал слово друг")
+                        say_text(user_name + word.SAY_COMMAND)
+                        time.sleep(3)
+                        mode = MODE_COMMAND
+                        command_start_time = time.time()
+                        cmd_rec.Reset()
 
-            result_text = result_by_words(result_text)
-            set_commands = set(result_text)
-            if set_commands & friend:
-                if media_list_player.is_playing():
-                    media_list_player.pause()
+                        print('Скажи твою команду')
 
-                print('main(): The word friend has been discovered. set_commands=', set_commands,
-                      ', Running process_text_main')
-                process_text_main(set_commands, result_text)
+            # РЕЖИМ КОМАНДЫ
+            elif mode == MODE_COMMAND:
+                if cmd_rec.AcceptWaveform(data):
+                    result = json.loads(cmd_rec.Result())  # cmd_rec.Result() возвращает строку в формате JSON, например: {"text": "привет как дела"}
+                                                            # json.loads преобразует JSON-строку в словарь. Т.е. result - словарь
+                    text = result.get("text", "")  # Получили значение text словаря result (получили строку с пробелами)
+                    print('Весь text в блоке MODE_COMMAND функии main = ', text)
+
+                    if text:
+                        print("Я услышал команду:", text)
+                        # Переводим текст text в список
+                        text_list = text.split()
+                        #  Переводим услышанный текст во множество, чтобы было быстрее сравнивать с текстами команд
+                        set_commands = set(text_list)
+                        # print('Получили множество: ', set_commands)
+                        # Проверяем, есть ли в словах пользователя команды для выполнения
+                        commands_to_execute = set_commands & word.SET_ALL_COMMANDS
+                        print('Получили команды для исполнения: ', commands_to_execute)
+                        # здесь обрабатываешь команду
+                        if not commands_to_execute.isdisjoint(word.SET_I_CAN_DO):
+                            # ***
+                            scenario = start_i_can_do()
+                            # **************
+                            mode = MODE_YESNO
+                            yesno_deadline = time.time() + 8
+                            yesno_rec.Reset()
+                        else:
+                            execute_command(commands_to_execute, set_commands, text_list)
+                            # возвращаемся в режим ожидания
+                            mode = MODE_WAKE
+                            wake_rec.Reset()
+                            print("Ожидание ключевого слова...")
+
+                    # Таймаут команды
+                    if time.time() - command_start_time > command_timeout:
+                        print("Таймаут, возврат в ожидание")
+                        mode = MODE_WAKE
+                        wake_rec.Reset()
+            # =====================
+            # MODE_YESNO
+            # =====================
+            elif mode == MODE_YESNO:
+                # таймаут
+                if time.time() > yesno_deadline:
+                    print("Нет ответа")
+                    mode = MODE_WAKE
+                    continue
+
+                if yesno_rec.AcceptWaveform(data):
+                    text = json.loads(yesno_rec.Result()).get("text", "")
+                    print('mode == MODE_YESNO text = ', text)
+
+                    answer = None
+
+                    if text in ["да"]:
+                        answer = "yes"
+                    elif text in ["нет"]:
+                        answer = "no"
+
+                    if answer:
+                        scenario = process_i_can_do(scenario, answer)
+
+                        if scenario is None:
+                            mode = MODE_WAKE
+                        else:
+                            yesno_rec.Reset()
+                            # ***************
+                            yesno_deadline = time.time() + 10
+                            # ********************
 
             media_player = media_list_player.get_media_player()
 
@@ -1144,10 +1366,6 @@ def main():
                 # b2=med.get_tracks_info()
                 # b5=med.get_state()
                 # b6=med.get_type()
-
-            rec.Reset()
-            stream.stop_stream()
-            stream.start_stream()
 
     finally:
         stream.stop_stream()
