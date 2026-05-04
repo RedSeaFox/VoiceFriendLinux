@@ -30,6 +30,22 @@ import pyaudio
 
 # Для распознавания речи используем vosk - автономный API распознавания речи
 from vosk import KaldiRecognizer
+# Для ASUS
+import numpy as np
+from scipy.signal import resample_poly
+
+def resample_audio(data, orig_rate=44100, target_rate=16000):
+    # bytes → numpy int16
+    audio = np.frombuffer(data, dtype=np.int16)
+
+    # ресэмплинг
+    resampled = resample_poly(audio, target_rate, orig_rate)
+
+    # обратно в int16
+    resampled = resampled.astype(np.int16)
+
+    # numpy → bytes
+    return resampled.tobytes()
 
 # Были сообщения от ALSA типа "ALSA lib pcm_dmix.c:999:(snd_pcm_dmix_open) unable to open slave"
 # и "jack server is not running or cannot be started"
@@ -157,21 +173,12 @@ client.set_punctuation(speechd.PunctuationMode.SOME)
 # Вариант 2 (если есть проблемы)
 # Если окажется, что устройство реально пишет в 48000 и 16000 даёт плохой звук, тогда:
 # записывать в 48000, делать ресэмплинг в Python (но это сложнее и тяжелее для CPU).
-CHANNELS = 1  # моно
-RATE = 16000  # частота дискретизации - кол-во фреймов в секунду
-# CHUNK = 8000  # кол-во фреймов за один "запрос" к микрофону - тк читаем по кусочкам
-CHUNK = 1024  # кол-во фреймов за один "запрос" к микрофону - тк читаем по кусочкам
-FORMAT = pyaudio.paInt16  # глубина звука = 16 бит = 2 байта
 
 # Чтобы использовать PyAudio, сначала создаем экземпляр PyAudio, который получит
 # системные ресурсы для PortAudio (короче подключаемся к микрофону)
 py_audio = pyaudio.PyAudio()
-model = word.MODEL_VOSK
 
-# # распознаватель для да и нет (ограниченный словарь)
-# grammar_yes_now = '["да", "давай", "расскажи", "нет","не надо"]'
-# rec_yes_now  = KaldiRecognizer(model, RATE, grammar_yes_now)
-
+ASUS = False
 # Поиск usb микрофона
 def find_input_device(p, name_part):
     for i in range(p.get_device_count()):
@@ -179,8 +186,10 @@ def find_input_device(p, name_part):
         if name_part in dev['name'] and dev['maxInputChannels'] > 0:
             return i
     return None
-
 DEVICE_INDEX = find_input_device(py_audio, "USB Audio")
+if DEVICE_INDEX != None:
+    ASUS = True
+
 # Какое устройство берётся по умолчанию?
 # Если в PyAudio ты пишешь: stream = p.open(input=True, ...), без input_device_index,
 # то используется: default input device (системное устройство по умолчанию)
@@ -191,6 +200,24 @@ DEVICE_INDEX = find_input_device(py_audio, "USB Audio")
 #  pulse — через PulseAudio / PipeWire
 # default — системный дефолт
 print("Используем устройство:", DEVICE_INDEX)
+# for i in range(py_audio.get_device_count()):
+#     print(i, py_audio.get_device_info_by_index(i)['name'])
+
+
+CHANNELS = 1  # моно
+# RATE = 44100  # частота дискретизации - кол-во фреймов в секунду
+if ASUS:
+    RATE = 44100
+else:
+    RATE = 16000
+# CHUNK кол-во фреймов за один "запрос" к микрофону - тк читаем по кусочкам
+if ASUS:
+    CHUNK = 4096
+else:
+    CHUNK = 1024
+FORMAT = pyaudio.paInt16  # глубина звука = 16 бит = 2 байта
+
+model = word.MODEL_VOSK
 
 # Создаём аудиопоток (stream), через который потом читаем звук с микрофона или пишем его.
 # py_audio.open: открывает аудиоустройство (микрофон), настраивает параметры (частота, формат, каналы),
@@ -230,15 +257,14 @@ len_playlist = 0
 user_name = word.USER_NAME
 
 def say_text(text):
-    text_len = len(text)
-    # time_len = text_len / 10 - 5
-    time_len = text_len / 10 - 7
+    # text_len = len(text)
+    # time_len = text_len / 10 - 7
 
     client.speak(text)
-    time.sleep(2)
-
-    if time_len > 0:
-        time.sleep(time_len)
+    # time.sleep(2)
+    #
+    # if time_len > 0:
+    #     time.sleep(time_len)
 
 
 def play_vlc(playlist_for_play='SomethingWrong.m3u'):
@@ -1012,130 +1038,6 @@ def say_day():
     # say_text(weekday_now_text + ' ' + day_now_text)
 #endregion
 
-
-def start_i_can_do():
-    name_file_info = word.FILE_INFO
-    is_err = False
-    text = ''
-
-    try:
-        # Пытаемся открыть файл
-        with open(name_file_info, 'r', encoding='utf-8') as f:
-            try:
-                data = json.load(f)
-            except json.JSONDecodeError as e:
-                text = f'Ошибка: файл {name_file_info} содержит некорректный JSON'
-                is_err = True
-    except FileNotFoundError:
-        text = f'Ошибка: файл {name_file_info} не найден'
-        is_err = True
-    except Exception as e:
-        # Другие возможные ошибки при работе с файлом
-        text = f'Произошла другая ошибка при загрузке {name_file_info}'
-        is_err = True
-
-    if is_err:
-        print(text)
-        say_text(word.FILE_INFO_DIFFICULTY)
-        say_text(word.SAME_WRONG)
-        return
-
-
-    scenario = {
-            "type": "i_can_do",
-            "data": data,
-            "step": 0
-        }
-
-
-    # сразу говорим "общее"
-    print(data["общее"])
-    say_text(data["общее"])
-    # time.sleep(3)
-
-    # задаём первый вопрос
-    print(data["ВопросПлеер"])
-    say_text(data["ВопросПлеер"])
-    # time.sleep(3)
-
-    return scenario
-
-# Пока так (хард код), потом переделать to do
-def process_i_can_do(scenario, answer):
-    data = scenario["data"]
-    step = scenario["step"]
-
-    # ======================
-    # ШАГ 0 → Плеер
-    # ======================
-    if step == 0:
-        if answer == "yes":
-            print(data["плеер"])
-            say_text(data["плеер"])
-            # time.sleep(3)
-
-        print(data["ВопросПлейлист"])
-        scenario["step"] = 1
-        say_text(data["ВопросПлейлист"])
-        # time.sleep(3)
-        return scenario
-
-    # ======================
-    # ШАГ 1 → Плейлист
-    # ======================
-    elif step == 1:
-        if answer == "yes":
-            print(data["плейлист"])
-            say_text(data["плейлист"])
-            # time.sleep(3)
-
-        print(data["ВопросТреки"])
-        say_text(data["ВопросТреки"])
-        scenario["step"] = 2
-        # time.sleep(3)
-        return scenario
-    # **********************************
-    #     == == == == == == == == == == ==
-    # ШАГ 2 → Треки
-    # ======================
-    elif step == 2:
-        if answer == "yes":
-            print(data["треки"])
-            say_text(data["треки"])
-            # time.sleep(3)
-
-        print(data["ВопросТреки2"])
-        say_text(data["ВопросТреки2"])
-        scenario["step"] = 3
-    # time.sleep(3)
-        return scenario
-    # == == == == == == == == == == ==
-    # ШАГ 3 → Треки2
-    # ======================
-    elif step == 3:
-        if answer == "yes":
-            print(data["треки2"])
-            say_text(data["треки2"])
-            # time.sleep(3)
-
-        print(data["ВопросВремя"])
-        say_text(data["ВопросВремя"])
-        scenario["step"] = 4
-        # time.sleep(3)
-        return scenario
-     # ======================
-        # ШАГ 4 → Время
-    # ======================
-    elif step == 4:
-        if answer == "yes":
-            print(data["время"])
-            say_text(data["время"])
-            say_text(data["помощь"])
-
-        print("Готово")
-        return None  # конец сценария
-
-
 def execute_command(commands_to_execute, set_commands, result_text):
     if not commands_to_execute:
         say_text(user_name + word.NO_COMMAND)
@@ -1188,7 +1090,7 @@ def execute_command(commands_to_execute, set_commands, result_text):
         commands_to_execute -= word.SET_I_CAN_DO
         # Рассказ о том что умеет друг в json разбитый по областям (общее, трек, плейлист)
         # поэтому можно организовать прослушивание конкретной области. Поэтому commands_to_execute -= word.SET_I_CAN_DO
-        i_can_do()
+        # i_can_do()
 
     elif not commands_to_execute.isdisjoint(word.SET_BYE):
         commands_to_execute -= word.SET_BYE
@@ -1208,171 +1110,201 @@ def bye():
     py_audio.terminate()
     print('main: Программа закрыта')
 
+print('Режим ASUS = ', ASUS)
+
+MODE_WAKE = 0
+MODE_COMMAND = 1
+MODE_MOVE = 2
 
 def main():
+    global stream
     global current_playlis
     global media_list_player
     global media_list
 
-    # friend = word.SET_FRIEND # to do Сделать в wake_rec из word.SET_FRIEND
-    time_to_bye = datetime.datetime.now().replace(hour=word.TIME_TO_BYE_HOUR, minute=word.TIME_TO_BYE_MINUTE)
+    # ===== recognizers =====
+    # wake_rec = KaldiRecognizer(model, 16000, '["друг", "дружок"]')
+    # wake_rec = KaldiRecognizer(model, 16000, '["эй компьютер"]')
+    wake_rec = KaldiRecognizer(model, 16000, '["эй подруга"]')
 
-    # распознаватель для wake word (ограниченный словарь!)
-    wake_rec = KaldiRecognizer(model, RATE, '["друг", "дружок"]')
-    # распознаватель для обычной речи
-    cmd_rec = KaldiRecognizer(model, RATE)
-    # распознаватель для да и нет (ограниченный словарь)
-    grammar_yes_now = '["да", "нет"]'
-    yesno_rec = KaldiRecognizer(model, RATE, grammar_yes_now)
+    print('')
+    cmd_grammar = json.dumps([
+        "пой", "играй", "плейлист", "список", "следующий", "следующая",
+        "предыдущий","предыдущая", "время", "сегодня", "день", "песни",
+        "музыка", "барды", "библия", "духовное", "здоровье", "зрение", "молитвы",
+        "память","мозг", "пока", "до свидания",
+        "вперёд", "назад", "минуту", "минуты", "минут", "секунду", "секунды",
+        "секунд", "час", "часа", "часов","трек", "трека", "треков",
+        "одну", "две", "три", "четыре","пять", "шесть", "семь",
+        "восемь", "девять", "десять", "одиннадцать", "двенадцать", "тринадцать",
+        "четырнадцать", "пятнадцать", "шестнадцать", "семнадцать", "восемнадцать",
+        "девятнадцать","двадцать", "тридцать", "сорок", "пятьдесят", "шестьдесят",
+        "семьдесят", "восемьдесят", "девяносто","сто", "двести"
+    ], ensure_ascii=False)
 
-    MODE_WAKE = 0
-    MODE_COMMAND = 1
-    MODE_YESNO = 2
-    yesno_deadline = 0
+    print('cmd_grammar: ', cmd_grammar)
+    cmd_rec = KaldiRecognizer(model, 16000, cmd_grammar)
+
+    mov_grammar = json.dumps([
+        "вперёд", "назад",
+        "минута", "минут",
+        "один", "два", "три", "пять", "десять"
+    ], ensure_ascii=False)
+    print('mov_grammar: ', mov_grammar)
+    mov_rec = KaldiRecognizer(model, 16000, mov_grammar)
 
     mode = MODE_WAKE
-    command_timeout = 15  # секунд
+    active_rec = wake_rec
+
+    # буфер текста
+    partial_text = ""
+    final_text = ""
+
+    # Счетчики wake word
+    wake_counter = 0
+    WAKE_THRESHOLD = 5
+
+    # таймеры
+    last_speech_time = time.time()
+    silence_timeout = 1.0   # пауза = конец фразы
+    command_timeout = 10.0
+
     command_start_time = 0
+
+    print("Ожидание ключевого слова...")
 
     try:
         while True:
-
-            # Надо выключить в назначенное время
-            # if datetime.datetime.now() > word.TIME_TO_BYE:
-            if datetime.datetime.now() > time_to_bye:
-                print('Пора спать!')
-                # Ставим плеер на паузу, если он включен
-                if media_list_player.is_playing():
-                    media_list_player.pause()
-
-                say_text(user_name + ', ' + word.SAY_TO_BYE_1)
-                say_time()
-                say_text(word.SAY_TO_BYE_2)
-
-                print('bye')
-                bye()
-
             data = stream.read(CHUNK, exception_on_overflow=False)
+            # data16 = resample_audio(data, 44100, 16000)
+            if ASUS:
+                data16 = resample_audio(data, 44100, 16000)
+            else:
+                data16 = data
 
-            # РЕЖИМ ОЖИДАНИЯ
-            if mode == MODE_WAKE:
-                if wake_rec.AcceptWaveform(data):
-                    result = json.loads(wake_rec.Result())
-                    text = result.get("text", "")
+            # ===== распознавание =====
+            if active_rec.AcceptWaveform(data16):
+                result = json.loads(active_rec.Result())
+                text = result.get("text", "")
 
-                    if text:
+                if text:
+                    final_text += " " + text
+                    last_speech_time = time.time()
+                    print('final_text active_rec :', final_text)
+
+            else:
+                # partial = json.loads(active_rec.PartialResult()).get("partial", "")
+                # if partial:
+                #     partial_text = partial
+                #     last_speech_time = time.time()
+                partial = json.loads(active_rec.PartialResult()).get("partial", "")
+                if partial:
+                    partial_text = partial
+                    last_speech_time = time.time()
+
+                    # 🔥 СЧЁТЧИК WAKE WORD
+                    if mode == MODE_WAKE:
+                        # if "эй компьютер" in partial_text:
+                        # if "эй подруга" in partial_text:
+                        if "эй подруга" in partial_text:
+                            wake_counter += 1
+                            print("wake_counter:", wake_counter)
+                        else:
+                            wake_counter = 0
+
+            # текущий текст
+            current_text = (final_text + " " + partial_text).strip()
+
+            # ===== окончание фразы по паузе =====
+            if current_text and (time.time() - last_speech_time > silence_timeout):
+
+                print("current_text окончание фразы по паузе :", current_text)
+
+                # =====================
+                # MODE_WAKE
+                # =====================
+                if mode == MODE_WAKE:
+                    # if "друг" in current_text or "дружок" in current_text:
+                    # if "эй компьютер" in current_text:
+                    if wake_counter >= WAKE_THRESHOLD:
+                        wake_counter = 0
                         if media_list_player.is_playing():
                             media_list_player.pause()
-                        print("Я услышал слово друг")
+                        print("Wake word: Услышали слово друг current_text:)", current_text)
                         say_text(user_name + word.SAY_COMMAND)
-                        time.sleep(3)
+
                         mode = MODE_COMMAND
-                        command_start_time = time.time()
+                        active_rec = cmd_rec
                         cmd_rec.Reset()
 
-                        print('Скажи твою команду')
+                        command_start_time = time.time()
 
-            # РЕЖИМ КОМАНДЫ
-            elif mode == MODE_COMMAND:
-                if cmd_rec.AcceptWaveform(data):
-                    result = json.loads(cmd_rec.Result())  # cmd_rec.Result() возвращает строку в формате JSON, например: {"text": "привет как дела"}
-                                                            # json.loads преобразует JSON-строку в словарь. Т.е. result - словарь
-                    text = result.get("text", "")  # Получили значение text словаря result (получили строку с пробелами)
-                    print('Весь text в блоке MODE_COMMAND функии main = ', text)
+                # =====================
+                # MODE_COMMAND
+                # =====================
+                elif mode == MODE_COMMAND:
 
-                    if text:
-                        print("Я услышал команду:", text)
-                        # Переводим текст text в список
-                        text_list = text.split()
-                        #  Переводим услышанный текст во множество, чтобы было быстрее сравнивать с текстами команд
-                        set_commands = set(text_list)
-                        # print('Получили множество: ', set_commands)
-                        # Проверяем, есть ли в словах пользователя команды для выполнения
-                        commands_to_execute = set_commands & word.SET_ALL_COMMANDS
-                        print('Получили команды для исполнения: ', commands_to_execute)
-                        # здесь обрабатываешь команду
-                        if not commands_to_execute.isdisjoint(word.SET_I_CAN_DO):
-                            # ***
-                            scenario = start_i_can_do()
-                            # **************
-                            mode = MODE_YESNO
-                            yesno_deadline = time.time() + 8
-                            yesno_rec.Reset()
-                        else:
-                            execute_command(commands_to_execute, set_commands, text_list)
-                            # возвращаемся в режим ожидания
-                            mode = MODE_WAKE
-                            wake_rec.Reset()
-                            print("Ожидание ключевого слова...")
+                    print('MODE_COMMAND: current_text', current_text)
 
-                    # Таймаут команды
-                    if time.time() - command_start_time > command_timeout:
-                        print("Таймаут, возврат в ожидание")
-                        mode = MODE_WAKE
-                        wake_rec.Reset()
-            # =====================
-            # MODE_YESNO
-            # =====================
-            elif mode == MODE_YESNO:
-                # таймаут
-                if time.time() > yesno_deadline:
-                    print("Нет ответа")
+                    words = set(current_text.split())
+
+                    print('words: ', words)
+
+                    # переход в MOVE
+                    if "вперёд" in words or "назад" in words:
+                        print("Переход в MOVE")
+                        # mode = MODE_MOVE
+                        # active_rec = mov_rec
+                        # mov_rec.Reset()
+                        print('elif mode == MODE_MOVE:')
+
+                        words = set(current_text.split())
+                        print("MOVE команда:", words)
+                        # ***********************
+                        commands = words & word.SET_ALL_COMMANDS
+                        print("Команды MOVE:", commands)
+
+                        execute_command(commands, words, current_text.split())
+
+                    else:
+                        commands = words & word.SET_ALL_COMMANDS
+                        print("Команды:", commands)
+
+                        execute_command(commands, words, current_text.split())
+
                     mode = MODE_WAKE
-                    continue
+                    active_rec = wake_rec
+                    wake_rec.Reset()
 
-                if yesno_rec.AcceptWaveform(data):
-                    text = json.loads(yesno_rec.Result()).get("text", "")
-                    print('mode == MODE_YESNO text = ', text)
+                # ===== очистка буфера =====
+                partial_text = ""
+                final_text = ""
 
-                    answer = None
+            # ===== таймаут команды =====
+            if mode == MODE_COMMAND:
+                if time.time() - command_start_time > command_timeout:
+                    print("Таймаут команды")
+                    mode = MODE_WAKE
+                    active_rec = wake_rec
+                    wake_rec.Reset()
 
-                    if text in ["да"]:
-                        answer = "yes"
-                    elif text in ["нет"]:
-                        answer = "no"
+        media_player = media_list_player.get_media_player()
 
-                    if answer:
-                        scenario = process_i_can_do(scenario, answer)
-
-                        if scenario is None:
-                            mode = MODE_WAKE
-                        else:
-                            yesno_rec.Reset()
-                            # ***************
-                            yesno_deadline = time.time() + 10
-                            # ********************
-
+        # vlc.State(6) (Ended) может быть или если список закончился или если файл не воспроизводится (не медиа формат)
+        if media_list_player.get_state() == vlc.State(6):
             media_player = media_list_player.get_media_player()
 
-            # vlc.State(6) (Ended) может быть или если список закончился или если файл не воспроизводится (не медиа формат)
-            if media_list_player.get_state() == vlc.State(6):
-                media_player = media_list_player.get_media_player()
-
-                # Если воспроизведение еще не началось, то это не медиа файл
-                if media_player.get_position() == 0:
-                    media_list_player.next()
-                elif media_player.get_position() == 1:
-                    # плейлист закончился, начинаем его сначала
-                    media_list_player.play_item_at_index(0)
-
-                # Можно получить текущий воспроизводимый файл
-                # med = media_player.get_media()
-                # med.tracks_get() если None, то значит это не медиа файл.
-                # Можно использовать это условие, чтобы перейти к следующему треку,
-                # но это еще один объект. Пока он не нужен
-                # b1=med.tracks_get()
-                # Смотрела также эти варианты
-                # b3=med.get_mrl() можно получить имя трека
-                # b2=med.get_tracks_info()
-                # b5=med.get_state()
-                # b6=med.get_type()
+            # Если воспроизведение еще не началось, то это не медиа файл
+            if media_player.get_position() == 0:
+                media_list_player.next()
+            elif media_player.get_position() == 1:
+                # плейлист закончился, начинаем его сначала
+                media_list_player.play_item_at_index(0)
 
     finally:
         stream.stop_stream()
         stream.close()
         py_audio.terminate()
-        print('main: Программа закрыта')
-
 
 if __name__ == '__main__':
     main()
